@@ -74,7 +74,3 @@ uv run python clip_pipeline.py --dataset cifar100
 ## Optional: Weights & Biases
 
 Omit `--no-wandb` to log runs. Configure `WANDB_API_KEY` / `WANDB_PROJECT` in `.env` or the CLI (see `text_cond_train.py --help`).
-
-## License / course policy
-
-If this is a course submission, follow your instructor’s rules for attribution, dataset use, and what may be published publicly.
