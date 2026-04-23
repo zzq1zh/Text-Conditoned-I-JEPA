@@ -1,0 +1,9 @@
+# Local secrets and tokens (use .env.example as a template)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+wandb/
