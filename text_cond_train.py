@@ -1,6 +1,6 @@
 """
 Fine-tune the text-conditioning adapter + fusion head on a training split (I-JEPA frozen),
-with optional Weights & Biases logging. Inline comments in English.
+with optional Weights & Biases logging.
 By default uses a CUDA GPU when ``torch.cuda.is_available()``; pass ``--cpu`` or ``--device cpu`` otherwise.
 Default ``--batch-size`` / ``--num-workers`` / ``--log-interval`` assume a large GPU; reduce if OOM.
 """
