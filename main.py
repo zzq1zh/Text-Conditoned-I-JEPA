@@ -1,5 +1,5 @@
 """
-Entry points and I-JEPA loading pipeline. Inline comments in English.
+Entry points and I-JEPA loading pipeline.
 Fine-tune text-conditioned I-JEPA: ``uv run python text_cond_train.py`` (defaults to CUDA GPU when
 available; use ``--cpu`` or ``--device cpu`` to force CPU). W&B optional. Copy ``.env.example`` to
 ``.env`` for ``HF_TOKEN`` / ``WANDB_API_KEY``.
