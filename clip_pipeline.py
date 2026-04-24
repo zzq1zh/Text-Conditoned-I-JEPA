@@ -1,7 +1,6 @@
 """
 CLIP evaluation pipeline: load common vision benchmarks via Hugging Face Datasets
 and run zero-shot image classification with a CLIP model from Transformers.
-All inline comments are in English.
 """
 
 from __future__ import annotations
