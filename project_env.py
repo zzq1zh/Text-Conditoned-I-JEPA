@@ -1,7 +1,7 @@
 """
 Load key=value pairs from a ``.env`` file at the repository root (see ``.env.example``).
 Call :func:`load_project_env` before Hugging Face Hub, W&B, or other services read tokens
-from the environment. Inline comments in English.
+from the environment.
 """
 
 from __future__ import annotations
