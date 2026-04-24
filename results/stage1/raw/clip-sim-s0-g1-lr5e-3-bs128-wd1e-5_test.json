@@ -1,0 +1,21 @@
+{
+  "dataset": "cspref_mit_states",
+  "split": "test",
+  "seed": 0,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "clip-sim-s0-g1-lr5e-3-bs128-wd1e-5",
+  "checkpoint": "checkpoints/cspref_mit_states_clip-sim_s0-g1-lr5e-3-bs128-wd1e-5.pt",
+  "from_hub": "",
+  "lr": 0.005,
+  "weight_decay": 1e-05,
+  "loss": 4.77547810628993,
+  "top1": 0.07549057329742209,
+  "top5": 0.2559445940746441,
+  "seen_top1": 0.1453781512605042,
+  "seen_top5": 0.39873949579831935,
+  "unseen_top1": 0.05982100800753651,
+  "unseen_top5": 0.2239284032030146,
+  "auc_csp_style": 0.01604282069813577,
+  "batch_size": 128,
+  "timestamp_unix": 1777021609
+}

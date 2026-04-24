@@ -1,0 +1,21 @@
+{
+  "dataset": "cspref_mit_states",
+  "split": "test",
+  "seed": 0,
+  "fusion_type": "cross_attention",
+  "experiment_tag": "cross-attn-s0-g2-lr5e-3-bs128-wd5e-5",
+  "checkpoint": "checkpoints/cspref_mit_states_cross-attn_s0-g2-lr5e-3-bs128-wd5e-5.pt",
+  "from_hub": "",
+  "lr": 0.005,
+  "weight_decay": 5e-05,
+  "loss": NaN,
+  "top1": 0.0,
+  "top5": 0.003924586379376684,
+  "seen_top1": 0.0,
+  "seen_top5": 0.0029411764705882353,
+  "unseen_top1": 0.0,
+  "unseen_top5": 0.004145077720207254,
+  "auc_csp_style": NaN,
+  "batch_size": 128,
+  "timestamp_unix": 1777041825
+}
