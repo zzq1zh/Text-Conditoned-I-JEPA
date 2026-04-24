@@ -26,7 +26,9 @@ Environment variables are loaded via `project_env` before training scripts run.
 | `main.py` | Model definitions (`TextConditionedIJepa`, I-JEPA helpers) and a small **I-JEPA / text-fusion smoke test** (`--text-fusion`). |
 | `clip_pipeline.py` | **CLIP zero-shot** classification on datasets registered in `vision_data.py`. |
 | `vision_data.py` | **Dataset registry** and split logic (`load_vision_train_val_test_specs`, etc.). |
+| `datasets_csp_style.py` | Extra CSP-style dataset view (`attr`/`obj`/`pair`, seen-vs-unseen pair flags) for compositional analysis. |
 | `build_csp_hf_datasets.py` | Build/prep CSP-style Parquet/zip data for the Hub (see script docstring). |
+| `build_csp_reference_hf_datasets.py` | Download CSP reference datasets (MIT-States / UT-Zappos / C-GQA), convert to HF format, and push private repos. |
 
 ## Text-conditioned I-JEPA (training)
 
@@ -70,6 +72,7 @@ uv run python clip_pipeline.py --dataset cifar100
 - `text_cond_train.py` — training loop, `HfPilImageDataset`, collate (phrase + optional negatives), Hub export/load.
 - `main.py` — `TextConditionedIJepa` forward (CE + optional multi-text contrast), small smoke tests.
 - `vision_data.py` — `DATASET_CONFIG` keys: `cifar10`, `cifar100`, `mit_states`, `csp_two_object`, `csp_single_object`, `csp_rel`.
+- `datasets_csp_style.py` — CSP-like compositional metadata view (attribute/object/pair + seen/unseen).
 
 ## Optional: Weights & Biases
 

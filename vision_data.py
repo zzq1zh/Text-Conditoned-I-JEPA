@@ -58,6 +58,24 @@ DATASET_CONFIG: dict[str, dict[str, Any]] = {
         "loader": "csp_hub",
         "csp_label_source": "positives_first",
     },
+    "cspref_mit_states": {
+        "path": "zzq1zh/csp-ref-mit-states",
+        "name": None,
+        "label_key": "label",
+        "loader": "csp_ref_hub",
+    },
+    "cspref_ut_zappos": {
+        "path": "zzq1zh/csp-ref-ut-zappos",
+        "name": None,
+        "label_key": "label",
+        "loader": "csp_ref_hub",
+    },
+    "cspref_cgqa": {
+        "path": "zzq1zh/csp-ref-cgqa",
+        "name": None,
+        "label_key": "label",
+        "loader": "csp_ref_hub",
+    },
 }
 
 
@@ -202,6 +220,66 @@ def _prepare_csp_datasetdict(raw: DatasetDict, path_for_err: str, csp_label_sour
     return DatasetDict(out_s)
 
 
+def _prepare_csp_ref_datasetdict(raw: DatasetDict, path_for_err: str) -> DatasetDict:
+    """
+    Build/normalize pair-based labels for CSP-reference HF repos.
+    Uses the ``pair`` string when present, otherwise falls back to ``attr`` + ``obj``.
+    """
+    if not isinstance(raw, DatasetDict):
+        raise TypeError(f"Expected DatasetDict for CSP ref {path_for_err!r}, got {type(raw).__name__}")
+    if "train" not in raw:
+        raise KeyError(f"CSP ref {path_for_err!r} must contain a train split, got {list(raw.keys())}")
+
+    all_pairs: set[str] = set()
+    for sp in raw.values():
+        cm = set(sp.column_names)
+        if "pair" in cm:
+            for i in range(len(sp)):
+                all_pairs.add(str(sp[i]["pair"]).strip())
+        elif "attr" in cm and "obj" in cm:
+            for i in range(len(sp)):
+                all_pairs.add(f"{str(sp[i]['attr']).strip()} {str(sp[i]['obj']).strip()}")
+        else:
+            raise ValueError(
+                f"CSP ref {path_for_err!r}: each split must provide either pair or attr+obj columns; got {sorted(cm)}"
+            )
+    class_names = sorted(x for x in all_pairs if x)
+    if not class_names:
+        raise ValueError(f"CSP ref {path_for_err!r}: empty pair label set")
+    name_to_id = {n: j for j, n in enumerate(class_names)}
+
+    def _batch_pair_from_pair(examples: dict[str, list[Any]]) -> dict[str, list[int]]:
+        out: list[int] = []
+        for p in examples["pair"]:
+            key = str(p).strip()
+            out.append(name_to_id[key])
+        return {"label": out}
+
+    def _batch_pair_from_attr_obj(examples: dict[str, list[Any]]) -> dict[str, list[int]]:
+        out: list[int] = []
+        attrs = examples["attr"]
+        objs = examples["obj"]
+        for a, o in zip(attrs, objs, strict=False):
+            key = f"{str(a).strip()} {str(o).strip()}"
+            out.append(name_to_id[key])
+        return {"label": out}
+
+    cl = ClassLabel(names=class_names)
+    out_s: dict[str, Dataset] = {}
+    for name, d in raw.items():
+        cm = set(d.column_names)
+        if len(d) == 0:
+            out_s[name] = d
+            continue
+        if "pair" in cm:
+            d2 = d.map(_batch_pair_from_pair, batched=True)
+        else:
+            d2 = d.map(_batch_pair_from_attr_obj, batched=True)
+        d2 = d2.cast_column("label", cl)
+        out_s[name] = d2
+    return DatasetDict(out_s)
+
+
 def load_vision_huggingface_as_dataset_dict(dataset_key: str) -> DatasetDict:
     """
     Load a registry entry as a :class:`DatasetDict`. CIFAR uses native Hub
@@ -226,6 +304,14 @@ def load_vision_huggingface_as_dataset_dict(dataset_key: str) -> DatasetDict:
             )
         src = str(cfg.get("csp_label_source", "pos"))
         return _prepare_csp_datasetdict(raw0, pth, src)
+    if cfg.get("loader") == "csp_ref_hub":
+        pth = str(cfg["path"])
+        raw0 = load_dataset(pth, cfg.get("name"))
+        if not isinstance(raw0, DatasetDict):
+            raise TypeError(
+                f"Expected DatasetDict (train/val/test) for CSP ref dataset {pth!r}, got {type(raw0).__name__}"
+            )
+        return _prepare_csp_ref_datasetdict(raw0, pth)
     raw = load_dataset(cfg["path"], cfg["name"])
     if isinstance(raw, Dataset):
         return DatasetDict({"train": raw})
@@ -447,21 +533,21 @@ def load_vision_train_val_test_specs(
 
     ``val_fraction`` is the fraction of Hub training rows that become *val* (e.g. 0.1).
 
-    For **csp_** hub datasets, ``val_fraction`` and ``split_seed`` are ignored: the
-    published ``train`` / ``val`` / ``test`` splits are used directly (no merge of
-    val into the test pool).
+    For **csp_** and **cspref_** hub datasets, ``val_fraction`` and ``split_seed``
+    are ignored: the published ``train`` / ``val`` / ``test`` splits are used directly
+    (no merge of val into the test pool).
     """
     if dataset_key not in DATASET_CONFIG:
         known = ", ".join(list_vision_dataset_keys())
         raise ValueError(f"Unknown dataset {dataset_key!r}. Choose one of: {known}")
 
     cfg = DATASET_CONFIG[dataset_key]
-    if cfg.get("loader") == "csp_hub":
+    if cfg.get("loader") in {"csp_hub", "csp_ref_hub"}:
         raw = load_vision_huggingface_as_dataset_dict(dataset_key)
         for k in ("train", "val", "test"):
             if k not in raw:
                 raise KeyError(
-                    f"CSP dataset {dataset_key!r} must have splits train, val, test; got {list(raw)}"
+                    f"CSP-style dataset {dataset_key!r} must have splits train, val, test; got {list(raw)}"
                 )
         label_key = cfg["label_key"]
         hub_train, hub_val, hub_test = raw["train"], raw["val"], raw["test"]

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from transformers import AutoImageProcessor, AutoTokenizer
@@ -90,10 +91,53 @@ def _default_wandb_project() -> str:
     return p or DEFAULT_WANDB_PROJECT
 
 
+def _resolve_wandb_run_name(explicit_name: str, fallback_name: str) -> str:
+    s = (explicit_name or "").strip()
+    return s or fallback_name
+
+
+def _default_train_wandb_run_name(args: argparse.Namespace) -> str:
+    return f"train-{args.dataset}-{args.fusion_type}-seed{args.seed}"
+
+
+def _default_eval_wandb_run_name(args: argparse.Namespace, *, fusion_type: str) -> str:
+    return f"eval-{args.dataset}-{args.eval_split}-{fusion_type}-seed{args.seed}"
+
+
 # Default dataloader: tuned for a single large GPU; lower --batch-size if OOM; --finetune-clip-text may need 8–12
 DEFAULT_TRAIN_BATCH = 16
 DEFAULT_TRAIN_NUM_WORKERS = 6
 DEFAULT_LOG_INTERVAL = 32
+CSPREF_RECOMMENDED: dict[str, dict[str, Any]] = {
+    # Close to CSP-style hyperparameters, but adapted to this training script.
+    "cspref_mit_states": {
+        "epochs": 20,
+        "batch_size": 128,
+        "num_workers": 8,
+        "lr": 5e-5,
+        "weight_decay": 1e-5,
+        "fusion_type": "linear",
+        "text_template": "a photo of a {c}.",
+    },
+    "cspref_ut_zappos": {
+        "epochs": 20,
+        "batch_size": 128,
+        "num_workers": 8,
+        "lr": 5e-5,
+        "weight_decay": 1e-5,
+        "fusion_type": "linear",
+        "text_template": "a photo of a {c}.",
+    },
+    "cspref_cgqa": {
+        "epochs": 20,
+        "batch_size": 128,
+        "num_workers": 8,
+        "lr": 5e-5,
+        "weight_decay": 1e-5,
+        "fusion_type": "linear",
+        "text_template": "a photo of a {c}.",
+    },
+}
 
 
 @dataclass
@@ -112,6 +156,7 @@ class TrainState:
     max_grad_norm: float
     cond_dim: int
     fusion_hidden: int
+    fusion_type: str
     text_template: str
     max_train_samples: int | None
     max_val_samples: int | None
@@ -121,9 +166,9 @@ class TrainState:
     seed: int
     device: str
     device_arg: str
-    contrast_loss_weight: float
-    use_phrase_pos: bool
-    include_neg_phrases: bool
+    wandb_log_images: bool
+    wandb_image_log_interval: int
+    wandb_max_images: int
 
 
 def _msamples(x: int) -> int | None:
@@ -144,6 +189,38 @@ def _resolve_hub_repo_id(hub_model_id: str) -> str:
             "bare names are not accepted."
         )
     return s
+
+
+def _arg_was_explicit(argv: list[str], key: str) -> bool:
+    """Whether ``--key`` (or ``--key=...``) was explicitly passed by the user."""
+    opt = f"--{key.replace('_', '-')}"
+    for t in argv:
+        if t == opt or t.startswith(opt + "="):
+            return True
+    return False
+
+
+def _apply_cspref_recommended_config(args: argparse.Namespace, argv: list[str]) -> None:
+    """
+    Apply dataset-specific recommended settings for cspref_* datasets.
+    Explicit CLI flags always override recommendations.
+    """
+    rec = CSPREF_RECOMMENDED.get(args.dataset)
+    if rec is None:
+        return
+    applied: list[str] = []
+    for k, v in rec.items():
+        if _arg_was_explicit(argv, k):
+            continue
+        old_v = getattr(args, k)
+        if old_v != v:
+            setattr(args, k, v)
+            applied.append(f"{k}={v!r}")
+    if applied:
+        print(
+            f"Applied recommended config for {args.dataset}: " + ", ".join(applied),
+            flush=True,
+        )
 
 
 def _resolve_train_device(args: argparse.Namespace) -> torch.device:
@@ -194,6 +271,8 @@ class HfPilImageDataset(Dataset):
             "image": _hf_image_to_pil_rgb(row[self.image_key]),
             "label": int(row[self.label_key]),
         }
+        if "pair_seen_in_train" in self.hf.column_names:
+            out["pair_seen_in_train"] = bool(row["pair_seen_in_train"])
         if self._has_phrase_columns:
             for k in self._phrase_keys:
                 v = row[k]
@@ -202,50 +281,228 @@ class HfPilImageDataset(Dataset):
 
 
 def make_collate_fn(
-    class_names: list[str],
-    text_template: str,
     processor: Any,
-    tokenizer: Any,
-    *,
-    use_phrase_from_columns: bool = False,
-    include_neg_phrases: bool = False,
 ) -> Any:
     """
-    Batches samples into ``pixel_values`` + CLIP text + long labels.
-
-    If ``use_phrase_from_columns`` (CSP: columns ``pos``, ``neg_0``..``neg_3``), the positive
-    prompt uses ``pos`` in ``text_template.format(c=...)`` instead of the class name.
-
-    If ``include_neg_phrases`` is also true, tokenizes four negatives per image (flat ``B*4``)
-    for the multi-text contrastive term in :class:`TextConditionedIJepa`.
+    Batches samples into ``pixel_values`` + long labels (+ optional seen flag).
+    Text embeddings are precomputed from the global candidate pool.
     """
 
     def _collate(batch: list[dict[str, Any]]) -> dict[str, torch.Tensor]:
         label_list = [int(d["label"]) for d in batch]
         images = [d["image"] for d in batch]
-        if use_phrase_from_columns:
-            texts = [text_template.format(c=d["pos"]) for d in batch]
-        else:
-            texts = prompts_for_label_indices(class_names, text_template, label_list)
         vis = processor(images=images, return_tensors="pt")
-        enc = tokenizer(texts, padding=True, return_tensors="pt", truncation=True)
         out: dict[str, Any] = {
             "pixel_values": vis["pixel_values"],
-            "input_ids": enc["input_ids"],
-            "attention_mask": enc["attention_mask"],
             "labels": torch.tensor(label_list, dtype=torch.long),
         }
-        if include_neg_phrases:
-            flat_negs: list[str] = []
-            for d in batch:
-                for j in range(4):
-                    flat_negs.append(text_template.format(c=d[f"neg_{j}"]))
-            enc_n = tokenizer(flat_negs, padding=True, return_tensors="pt", truncation=True)
-            out["neg_input_ids"] = enc_n["input_ids"]
-            out["neg_attention_mask"] = enc_n["attention_mask"]
+        if "pair_seen_in_train" in batch[0]:
+            out["pair_seen_in_train"] = torch.tensor(
+                [bool(d["pair_seen_in_train"]) for d in batch], dtype=torch.bool
+            )
         return out
 
     return _collate
+
+
+@torch.inference_mode()
+def _build_candidate_text_bank(
+    model: TextConditionedIJepa,
+    tokenizer: Any,
+    class_names: list[str],
+    text_template: str,
+    device: torch.device,
+    *,
+    chunk_size: int = 512,
+) -> torch.Tensor:
+    """
+    Precompute candidate text embeddings for all classes.
+    Returns tensor of shape (C, cond_dim) on ``device``.
+    """
+    prompts = [text_template.format(c=c) for c in class_names]
+    chunks: list[torch.Tensor] = []
+    for s in range(0, len(prompts), chunk_size):
+        e = min(len(prompts), s + chunk_size)
+        enc = tokenizer(prompts[s:e], padding=True, return_tensors="pt", truncation=True)
+        ids = enc["input_ids"].to(device)
+        mask = enc["attention_mask"].to(device)
+        t = model.encode_text(ids, mask)
+        chunks.append(t.detach())
+    return torch.cat(chunks, dim=0)
+
+
+def _clip_contrastive_loss(pair_scores: torch.Tensor) -> torch.Tensor:
+    """
+    CLIP-style symmetric InfoNCE loss from a pair score matrix.
+    pair_scores: (B, B), where diagonal entries are positives.
+    """
+    if pair_scores.ndim != 2 or pair_scores.size(0) != pair_scores.size(1):
+        raise ValueError(
+            f"pair_scores must be square (B,B), got shape={tuple(pair_scores.shape)}"
+        )
+    target = torch.arange(pair_scores.size(0), device=pair_scores.device, dtype=torch.long)
+    loss_i2t = nn.functional.cross_entropy(pair_scores, target)
+    loss_t2i = nn.functional.cross_entropy(pair_scores.t(), target)
+    return 0.5 * (loss_i2t + loss_t2i)
+
+
+@torch.inference_mode()
+def _compute_auc_ovr_macro(
+    logits_list: list[torch.Tensor], labels_list: list[torch.Tensor], num_classes: int
+) -> float:
+    """
+    Compute ROC-AUC for multiclass classification using OVR macro averaging.
+    Returns NaN when it cannot be computed (e.g., missing classes in the split).
+    """
+    if not logits_list or not labels_list:
+        return float("nan")
+    try:
+        from sklearn.metrics import roc_auc_score
+    except ImportError:
+        return float("nan")
+
+    logits = torch.cat(logits_list, dim=0)
+    labels = torch.cat(labels_list, dim=0)
+    if logits.ndim != 2 or labels.ndim != 1:
+        return float("nan")
+    if logits.size(0) != labels.size(0) or logits.size(1) != num_classes:
+        return float("nan")
+    if labels.numel() == 0:
+        return float("nan")
+
+    probs = torch.softmax(logits, dim=-1).cpu().numpy()
+    y = labels.cpu().numpy()
+    try:
+        if num_classes == 2:
+            return float(roc_auc_score(y, probs[:, 1]))
+        return float(roc_auc_score(y, probs, multi_class="ovr", average="macro"))
+    except ValueError:
+        # Typical on tiny subsets where not all classes are present.
+        return float("nan")
+
+
+@torch.inference_mode()
+def _make_wandb_images(
+    pixel_values: torch.Tensor,
+    labels: torch.Tensor,
+    preds: torch.Tensor,
+    *,
+    max_images: int,
+    class_names: list[str] | None = None,
+) -> list[Any]:
+    """
+    Build a small list of ``wandb.Image`` from a training batch.
+    Uses per-image min-max normalization for visualization only.
+    """
+    import wandb
+
+    pv = pixel_values.detach().cpu().float()
+    y = labels.detach().cpu().long()
+    p = preds.detach().cpu().long()
+    n = min(int(max_images), int(pv.size(0)))
+    out: list[Any] = []
+    def _label_text(idx: int) -> str:
+        if class_names is not None and 0 <= idx < len(class_names):
+            return class_names[idx]
+        return str(idx)
+
+    for i in range(n):
+        img = pv[i]
+        img = img - img.min()
+        den = img.max().clamp(min=1e-6)
+        img = img / den
+        yi = int(y[i])
+        pi = int(p[i])
+        out.append(
+            wandb.Image(
+                img,
+                caption=(
+                    f"predict label: {_label_text(pi)} ({pi}) ; "
+                    f"true label: {_label_text(yi)} ({yi})"
+                ),
+            )
+        )
+    return out
+
+
+@torch.inference_mode()
+def _compute_auc_csp_style(
+    logits_list: list[torch.Tensor],
+    labels_list: list[torch.Tensor],
+    seen_flags_list: list[torch.Tensor],
+    num_classes: int,
+) -> float:
+    """
+    CSP-style AUC:
+    sweep an unseen-class bias and integrate seen/unseen top-1 trade-off.
+
+    Returns NaN when seen/unseen supervision is unavailable (non-compositional datasets)
+    or when the split does not contain enough seen/unseen examples.
+    """
+    if not logits_list or not labels_list or not seen_flags_list:
+        return float("nan")
+    logits = torch.cat(logits_list, dim=0).float()
+    labels = torch.cat(labels_list, dim=0).long()
+    seen_flags = torch.cat(seen_flags_list, dim=0).bool()
+    if logits.ndim != 2 or labels.ndim != 1 or seen_flags.ndim != 1:
+        return float("nan")
+    if logits.size(0) != labels.numel() or labels.numel() != seen_flags.numel():
+        return float("nan")
+    if logits.size(1) != num_classes or num_classes <= 1:
+        return float("nan")
+
+    class_seen = torch.zeros(num_classes, dtype=torch.bool)
+    for y, sf in zip(labels.tolist(), seen_flags.tolist(), strict=False):
+        if 0 <= y < num_classes and bool(sf):
+            class_seen[y] = True
+    if (not class_seen.any()) or bool(class_seen.all()):
+        return float("nan")
+
+    unseen_sample_mask = ~class_seen[labels]
+    if unseen_sample_mask.sum().item() == 0:
+        return float("nan")
+    seen_sample_mask = ~unseen_sample_mask
+    if seen_sample_mask.sum().item() == 0:
+        return float("nan")
+
+    unseen_logits = logits[unseen_sample_mask]
+    unseen_labels = labels[unseen_sample_mask]
+    correct_scores = unseen_logits.gather(1, unseen_labels.view(-1, 1)).squeeze(1)
+    max_seen_scores = unseen_logits[:, class_seen].max(dim=1).values
+    unseen_score_diff = max_seen_scores - correct_scores
+
+    pred0 = logits.argmax(dim=1)
+    unseen_matches0 = pred0[unseen_sample_mask].eq(unseen_labels)
+    correct_unseen_diff = unseen_score_diff[unseen_matches0] - 1e-4
+    if correct_unseen_diff.numel() == 0:
+        return float("nan")
+    correct_unseen_diff = torch.sort(correct_unseen_diff).values
+    magic_binsize = 20
+    bias_skip = max(correct_unseen_diff.numel() // magic_binsize, 1)
+    bias_list = correct_unseen_diff[::bias_skip]
+
+    seen_acc: list[float] = []
+    unseen_acc: list[float] = []
+    unseen_class_mask = ~class_seen
+    for bias in bias_list.tolist():
+        s = logits.clone()
+        s[:, unseen_class_mask] += float(bias)
+        pred = s.argmax(dim=1)
+        seen_acc.append(float(pred[seen_sample_mask].eq(labels[seen_sample_mask]).float().mean().item()))
+        unseen_acc.append(float(pred[unseen_sample_mask].eq(labels[unseen_sample_mask]).float().mean().item()))
+
+    seen_acc.append(float(pred0[seen_sample_mask].eq(labels[seen_sample_mask]).float().mean().item()))
+    unseen_acc.append(float(pred0[unseen_sample_mask].eq(labels[unseen_sample_mask]).float().mean().item()))
+    try:
+        import numpy as np
+
+        x = np.asarray(unseen_acc)
+        y = np.asarray(seen_acc)
+        if hasattr(np, "trapezoid"):
+            return float(np.trapezoid(y, x))
+        return float(np.trapz(y, x))
+    except (ValueError, TypeError):
+        return float("nan")
 
 
 @torch.inference_mode()
@@ -253,45 +510,45 @@ def _eval_loss_topk(
     model: TextConditionedIJepa,
     loader: DataLoader,
     device: torch.device,
+    candidate_text_bank: torch.Tensor,
     *,
     use_amp: bool,
     num_classes: int,
-    contrast_loss_weight: float = 0.0,
-) -> tuple[float, float, float]:
+    use_bidirectional_infonce: bool = True,
+) -> tuple[float, float, float, float, float]:
     """
     Mean loss (if labels provided), top-1 accuracy, top-5 accuracy.
-    Top-k uses k = min(5, num_classes). Optional phrase-level contrast term matches training.
+    Top-k uses k = min(5, num_classes).
     """
     model.eval()
     n_ok1 = 0
     n_ok5 = 0
     n = 0
     total_loss = 0.0
+    all_logits: list[torch.Tensor] = []
+    all_labels: list[torch.Tensor] = []
+    all_seen_flags: list[torch.Tensor] = []
     k_top = min(5, num_classes)
     for batch in loader:
         pv = batch["pixel_values"].to(device)
-        ids = batch["input_ids"].to(device)
-        mask = batch["attention_mask"].to(device)
         y = batch["labels"].to(device)
-        forward_kw: dict[str, Any] = {
-            "pixel_values": pv,
-            "input_ids": ids,
-            "attention_mask": mask,
-            "labels": y,
-            "contrast_loss_weight": float(contrast_loss_weight),
-        }
-        if contrast_loss_weight > 0 and "neg_input_ids" in batch:
-            forward_kw["neg_input_ids"] = batch["neg_input_ids"].to(device)
-            forward_kw["neg_attention_mask"] = batch["neg_attention_mask"].to(device)
         with torch.amp.autocast(
             device_type=device.type,
             enabled=(device.type == "cuda" and use_amp),
             dtype=torch.float16,
         ):
-            out = model(**forward_kw)
-        if out["loss"] is not None:
-            total_loss += float(out["loss"].item()) * y.size(0)
-        logits = out["logits"]
+            z = model.encode_image(pv)
+            logits = model.score_candidates(z, candidate_text_bank)
+            if not use_bidirectional_infonce:
+                raise RuntimeError("Only bidirectional_infonce loss is supported.")
+            pos_text = candidate_text_bank.index_select(0, y)
+            pair_scores = model.score_candidates(z, pos_text)
+            loss = _clip_contrastive_loss(pair_scores)
+        total_loss += float(loss.item()) * y.size(0)
+        all_logits.append(logits.detach().cpu())
+        all_labels.append(y.detach().cpu())
+        if "pair_seen_in_train" in batch:
+            all_seen_flags.append(batch["pair_seen_in_train"].detach().cpu().bool())
         pred1 = logits.argmax(dim=-1)
         n_ok1 += (pred1 == y).sum().item()
         if k_top > 0:
@@ -299,8 +556,10 @@ def _eval_loss_topk(
             n_ok5 += (topk_idx == y.unsqueeze(-1)).any(dim=-1).sum().item()
         n += y.size(0)
     if n == 0:
-        return 0.0, 0.0, 0.0
-    return total_loss / n, n_ok1 / n, n_ok5 / n
+        return 0.0, 0.0, 0.0, float("nan"), float("nan")
+    auc_ovr_macro = _compute_auc_ovr_macro(all_logits, all_labels, num_classes)
+    auc_csp_style = _compute_auc_csp_style(all_logits, all_labels, all_seen_flags, num_classes)
+    return total_loss / n, n_ok1 / n, n_ok5 / n, auc_ovr_macro, auc_csp_style
 
 
 def _export_trainable_state_dict(model: TextConditionedIJepa) -> dict[str, torch.Tensor]:
@@ -330,13 +589,15 @@ def _hub_config_dict(
         "num_labels": int(num_labels),
         "cond_dim": int(args.cond_dim),
         "fusion_hidden": int(args.fusion_hidden),
+        "fusion_type": str(args.fusion_type),
+        "loss_mode": "bidirectional_infonce",
         "finetune_clip_text": bool(args.finetune_clip_text),
         "dataset": args.dataset,
         "text_template": args.text_template,
         "val_fraction": float(args.val_fraction),
         "split_seed": int(args.split_seed),
         "class_names": list(class_names),
-        "contrast_loss_weight": float(args.contrast_loss_weight),
+        "text_bank_chunk_size": int(args.text_bank_chunk_size),
     }
 
 
@@ -404,6 +665,7 @@ def load_text_cond_trainable_from_hub(
         clip_id=str(cfg["clip_id"]),
         cond_dim=int(cfg["cond_dim"]),
         fusion_hidden=int(cfg["fusion_hidden"]),
+        fusion_type=str(cfg.get("fusion_type", "cross_attention")),
         freeze_text_encoder=not bool(cfg.get("finetune_clip_text", False)),
     )
     model.to(device)
@@ -448,14 +710,6 @@ def run_finetune(args: argparse.Namespace) -> None:
     if len(train_ds) == 0 or len(val_ds) == 0:
         raise RuntimeError("Train or val split is empty. Check --max-train/val-samples and val-fraction")
 
-    use_phr = train_ds.has_phrase_columns
-    w_ct = float(args.contrast_loss_weight)
-    include_neg = use_phr and w_ct > 0.0
-    if use_phr and not val_ds.has_phrase_columns:
-        raise RuntimeError(
-            "Train split has pos/neg_* columns but val split does not; check dataset schema."
-        )
-
     im_proc = AutoImageProcessor.from_pretrained(args.ijepa)
     model = TextConditionedIJepa(
         num_labels=n_classes,
@@ -463,19 +717,13 @@ def run_finetune(args: argparse.Namespace) -> None:
         clip_id=args.clip,
         cond_dim=args.cond_dim,
         fusion_hidden=args.fusion_hidden,
+        fusion_type=args.fusion_type,
         freeze_text_encoder=not args.finetune_clip_text,
     )
     model.to(device)
 
     tok = AutoTokenizer.from_pretrained(args.clip)
-    collate = make_collate_fn(
-        tvt.train.class_names,
-        args.text_template,
-        im_proc,
-        tok,
-        use_phrase_from_columns=use_phr,
-        include_neg_phrases=include_neg,
-    )
+    collate = make_collate_fn(im_proc)
 
     # Avoid empty batches on tiny subsampled training sets
     _drop = len(train_ds) >= 2 * args.batch_size
@@ -501,6 +749,12 @@ def run_finetune(args: argparse.Namespace) -> None:
     if not params:
         raise RuntimeError("No trainable parameters; try --finetune-clip-text for CLIP text adapter + fusion")
     opt = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
+    resolved_loss_mode = "bidirectional_infonce"
+    use_bidirectional_infonce = True
+    print(
+        f"Using loss_mode={resolved_loss_mode}: CLIP-style contrastive loss (symmetric InfoNCE).",
+        flush=True,
+    )
 
     state = TrainState(
         dataset_key=args.dataset,
@@ -515,6 +769,7 @@ def run_finetune(args: argparse.Namespace) -> None:
         max_grad_norm=args.max_grad_norm,
         cond_dim=args.cond_dim,
         fusion_hidden=args.fusion_hidden,
+        fusion_type=args.fusion_type,
         text_template=args.text_template,
         max_train_samples=args.max_train_samples,
         max_val_samples=args.max_val_samples,
@@ -524,9 +779,9 @@ def run_finetune(args: argparse.Namespace) -> None:
         seed=args.seed,
         device=str(device),
         device_arg=args.device,
-        contrast_loss_weight=w_ct,
-        use_phrase_pos=use_phr,
-        include_neg_phrases=include_neg,
+        wandb_log_images=bool(args.wandb_log_images),
+        wandb_image_log_interval=int(args.wandb_image_log_interval),
+        wandb_max_images=int(args.wandb_max_images),
     )
 
     use_wandb = not args.no_wandb
@@ -537,10 +792,14 @@ def run_finetune(args: argparse.Namespace) -> None:
         w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
         if w_key:
             wandb.login(key=w_key, relogin=True)
+        run_name = _resolve_wandb_run_name(
+            args.wandb_run_name,
+            _default_train_wandb_run_name(args),
+        )
         w = wandb.init(
             project=args.wandb_project,
             entity=args.wandb_entity or None,
-            name=args.wandb_run_name or None,
+            name=run_name,
             config=asdict(state),
         )
     else:
@@ -556,39 +815,32 @@ def run_finetune(args: argparse.Namespace) -> None:
     t0 = time.time()
 
     for epoch in range(args.epochs):
+        # Recompute candidate text embeddings each epoch from the current text adapter.
+        candidate_text_bank = _build_candidate_text_bank(
+            model,
+            tok,
+            tvt.train.class_names,
+            args.text_template,
+            device,
+            chunk_size=int(args.text_bank_chunk_size),
+        )
         model.train()
         pbar = tqdm(
             train_loader, desc=f"train ep {epoch+1}/{args.epochs}", file=sys.stdout
         )
         for batch in pbar:
             pv = batch["pixel_values"].to(device, non_blocking=True)
-            ids = batch["input_ids"].to(device, non_blocking=True)
-            mask = batch["attention_mask"].to(device, non_blocking=True)
             y = batch["labels"].to(device, non_blocking=True)
             opt.zero_grad(set_to_none=True)
-            forward_kw: dict[str, Any] = {
-                "pixel_values": pv,
-                "input_ids": ids,
-                "attention_mask": mask,
-                "labels": y,
-                "contrast_loss_weight": w_ct if include_neg else 0.0,
-            }
-            if include_neg:
-                assert "neg_input_ids" in batch
-                forward_kw["neg_input_ids"] = batch["neg_input_ids"].to(
-                    device, non_blocking=True
-                )
-                forward_kw["neg_attention_mask"] = batch["neg_attention_mask"].to(
-                    device, non_blocking=True
-                )
             with torch.amp.autocast(
                 device_type=device.type,
                 enabled=use_cuda_amp,
                 dtype=torch.float16,
             ):
-                out = model(**forward_kw)
-            assert out["loss"] is not None
-            loss = out["loss"]
+                z = model.encode_image(pv)
+                pos_text = candidate_text_bank.index_select(0, y)
+                pair_scores = model.score_candidates(z, pos_text)
+                loss = _clip_contrastive_loss(pair_scores)
             if grad_scaler is not None:
                 grad_scaler.scale(loss).backward()
             else:
@@ -604,34 +856,51 @@ def run_finetune(args: argparse.Namespace) -> None:
                 opt.step()
 
             with torch.inference_mode():
-                pred = out["logits"].argmax(-1)
+                full_logits = model.score_candidates(z, candidate_text_bank)
+                pred = full_logits.argmax(-1)
                 batch_acc = (pred == y).float().mean().item()
-            if use_wandb and w is not None and global_step % args.log_interval == 0:
+            if use_wandb and w is not None:
                 import wandb
 
-                log_d: dict[str, Any] = {
-                    "train/loss": float(loss.item()),
-                    "train/batch_acc": batch_acc,
-                    "train/lr": opt.param_groups[0]["lr"],
-                    "time_elapsed_s": time.time() - t0,
-                }
-                if out.get("loss_ce") is not None:
-                    log_d["train/loss_ce"] = float(out["loss_ce"].item())
-                if out.get("loss_contrast") is not None:
-                    log_d["train/loss_contrast"] = float(out["loss_contrast"].item())
-                wandb.log(log_d, step=global_step)
+                log_d: dict[str, Any] = {}
+                if global_step % args.log_interval == 0:
+                    log_d.update(
+                        {
+                            "train/loss": float(loss.item()),
+                            "train/batch_acc": batch_acc,
+                            "train/lr": opt.param_groups[0]["lr"],
+                            "time_elapsed_s": time.time() - t0,
+                        }
+                    )
+                    log_d["train/loss_contrastive"] = float(loss.item())
+
+                if (
+                    args.wandb_log_images
+                    and args.wandb_image_log_interval > 0
+                    and global_step % args.wandb_image_log_interval == 0
+                ):
+                    log_d["train/images"] = _make_wandb_images(
+                        pv,
+                        y,
+                        pred,
+                        max_images=int(args.wandb_max_images),
+                        class_names=tvt.train.class_names,
+                    )
+                if log_d:
+                    wandb.log(log_d, step=global_step)
             pbar.set_postfix(
                 loss=f"{float(loss.detach()):.3f}", acc=f"{batch_acc:.3f}"
             )
             global_step += 1
 
-        val_loss, val_top1, val_top5 = _eval_loss_topk(
+        val_loss, val_top1, val_top5, val_auc_ovr, val_auc_csp = _eval_loss_topk(
             model,
             val_loader,
             device,
+            candidate_text_bank,
             use_amp=(device.type == "cuda" and args.amp),
             num_classes=n_classes,
-            contrast_loss_weight=w_ct if include_neg else 0.0,
+            use_bidirectional_infonce=use_bidirectional_infonce,
         )
         if use_wandb and w is not None:
             import wandb
@@ -642,12 +911,15 @@ def run_finetune(args: argparse.Namespace) -> None:
                     "val/loss": val_loss,
                     "val/acc@1": val_top1,
                     "val/acc@5": val_top5,
+                    "val/auc_ovr_macro": val_auc_ovr,
+                    "val/auc_csp_style": val_auc_csp,
                 },
                 step=global_step,
             )
         print(
             f"Epoch {epoch+1}/{args.epochs}  val_loss={val_loss:.4f}  "
             f"top-1={val_top1*100:.2f}%  top-5={val_top5*100:.2f}%  "
+            f"auc_csp_style={val_auc_csp:.4f}  auc_ovr_macro={val_auc_ovr:.4f}  "
             f"(train samples={len(train_ds)}, val samples={len(val_ds)})"
         )
 
@@ -711,7 +983,6 @@ def run_eval_only(args: argparse.Namespace) -> None:
     if len(eval_ds) == 0:
         raise RuntimeError("Eval split is empty. Check --max-eval-samples and data config.")
 
-    contrast_w = float(args.contrast_loss_weight)
     if from_hub:
         model, cfg = load_text_cond_trainable_from_hub(
             from_hub, device, token=(args.hub_token or "").strip() or None
@@ -726,7 +997,6 @@ def run_eval_only(args: argparse.Namespace) -> None:
         ijepa_id = str(cfg["ijepa_id"])
         clip_id = str(cfg["clip_id"])
         tpl = str(cfg.get("text_template", args.text_template))
-        contrast_w = float(cfg.get("contrast_loss_weight", contrast_w))
         print(f"Loaded trainable weights from the Hub: {from_hub}", flush=True)
     else:
         n_classes = len(tvt.train.class_names)
@@ -740,6 +1010,7 @@ def run_eval_only(args: argparse.Namespace) -> None:
             clip_id=clip_id,
             cond_dim=args.cond_dim,
             fusion_hidden=args.fusion_hidden,
+            fusion_type=args.fusion_type,
             freeze_text_encoder=not args.finetune_clip_text,
         )
         model.to(device)
@@ -755,15 +1026,14 @@ def run_eval_only(args: argparse.Namespace) -> None:
 
     im_proc = AutoImageProcessor.from_pretrained(ijepa_id)
     tok = AutoTokenizer.from_pretrained(clip_id)
-    use_phr = eval_ds.has_phrase_columns
-    include_neg = use_phr and contrast_w > 0.0
-    collate = make_collate_fn(
+    collate = make_collate_fn(im_proc)
+    candidate_text_bank = _build_candidate_text_bank(
+        model,
+        tok,
         class_names,
         tpl,
-        im_proc,
-        tok,
-        use_phrase_from_columns=use_phr,
-        include_neg_phrases=include_neg,
+        device,
+        chunk_size=int(args.text_bank_chunk_size),
     )
     loader = DataLoader(
         eval_ds,
@@ -774,19 +1044,58 @@ def run_eval_only(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
-    loss, top1, top5 = _eval_loss_topk(
+    loss, top1, top5, auc_ovr, auc_csp = _eval_loss_topk(
         model,
         loader,
         device,
+        candidate_text_bank,
         use_amp=(device.type == "cuda" and args.amp),
         num_classes=n_classes,
-        contrast_loss_weight=contrast_w if include_neg else 0.0,
+        use_bidirectional_infonce=True,
     )
     split_name = f"{args.eval_split} (n={len(eval_ds)})"
     print(
-        f"\n{split_name}\n  loss: {loss:.4f}\n  top-1: {top1*100:.2f}%\n  top-5: {top5*100:.2f}%\n",
+        f"\n{split_name}\n  loss: {loss:.4f}\n  top-1: {top1*100:.2f}%\n  top-5: {top5*100:.2f}%\n  auc_csp_style: {auc_csp:.4f}\n  auc_ovr_macro: {auc_ovr:.4f}\n",
         flush=True,
     )
+    if not args.no_wandb:
+        import wandb
+
+        w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
+        if w_key:
+            wandb.login(key=w_key, relogin=True)
+        run_name = _resolve_wandb_run_name(
+            args.wandb_run_name,
+            _default_eval_wandb_run_name(
+                args,
+                fusion_type=str(getattr(model.fusion, "fusion_type", args.fusion_type)),
+            ),
+        )
+        w = wandb.init(
+            project=args.wandb_project,
+            entity=args.wandb_entity or None,
+            name=run_name,
+            config={
+                "mode": "eval_only",
+                "dataset": args.dataset,
+                "eval_split": args.eval_split,
+                "fusion_type": str(getattr(model.fusion, "fusion_type", args.fusion_type)),
+                "seed": int(args.seed),
+                "from_hub": from_hub,
+                "checkpoint": ckpt,
+            },
+        )
+        wandb.log(
+            {
+                f"{args.eval_split}/loss": float(loss),
+                f"{args.eval_split}/acc@1": float(top1),
+                f"{args.eval_split}/acc@5": float(top5),
+                f"{args.eval_split}/auc_csp_style": float(auc_csp),
+                f"{args.eval_split}/auc_ovr_macro": float(auc_ovr),
+            },
+            step=0,
+        )
+        wandb.finish()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -806,16 +1115,6 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--split-seed", type=int, default=0)
     p.add_argument("--text-template", default=DEFAULT_PROMPT_TEMPLATE)
     p.add_argument(
-        "--contrast-loss-weight",
-        type=float,
-        default=1.0,
-        help=(
-            "When the dataset has pos/neg_0..neg_3, add a contrast term: among 1 pos + 4 negs, "
-            "the logit for the true class must be largest on the pos text. 0 disables the term "
-            "(pos-only CE still uses the pos phrase)."
-        ),
-    )
-    p.add_argument(
         "--max-train-samples",
         type=int,
         default=0,
@@ -834,8 +1133,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--weight-decay", type=float, default=0.01)
     p.add_argument("--max-grad-norm", type=float, default=1.0)
+    p.add_argument(
+        "--text-bank-chunk-size",
+        type=int,
+        default=512,
+        help="Chunk size when precomputing all candidate text embeddings.",
+    )
     p.add_argument("--cond-dim", type=int, default=256)
     p.add_argument("--fusion-hidden", type=int, default=512)
+    p.add_argument(
+        "--fusion-type",
+        choices=("cross_attention", "linear", "clip_similarity"),
+        default="cross_attention",
+        help="Fusion head type for visual+text conditioning. `clip_similarity` uses CLIP-style normalized dot-product scoring.",
+    )
     p.add_argument(
         "--finetune-clip-text",
         action="store_true",
@@ -879,6 +1190,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--wandb-entity", default="", help="W&B team/entity (optional)")
     p.add_argument("--wandb-run-name", default="", help="W&B run display name (optional)")
+    p.add_argument(
+        "--wandb-log-images",
+        action="store_true",
+        help="Log training batch images to W&B (caption includes y/pred).",
+    )
+    p.add_argument(
+        "--wandb-image-log-interval",
+        type=int,
+        default=1,
+        help="Log images every N global steps when --wandb-log-images is enabled.",
+    )
+    p.add_argument(
+        "--wandb-max-images",
+        type=int,
+        default=8,
+        help="Maximum number of images logged per image logging step.",
+    )
     p.add_argument(
         "--save", default="", help="Optional path to save model.state_dict() after training"
     )
@@ -931,7 +1259,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    args = build_parser().parse_args()
+    argv = sys.argv[1:]
+    args = build_parser().parse_args(argv)
+    _apply_cspref_recommended_config(args, argv)
     if args.eval_only:
         run_eval_only(args)
     else:

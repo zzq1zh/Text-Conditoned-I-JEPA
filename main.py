@@ -13,6 +13,7 @@ project_env.load_project_env()
 
 import argparse
 import gc
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -98,7 +99,7 @@ def load_ijepa_pipeline(
     """
     Load I-JEPA backbone + ViT image preprocessor from the Hugging Face Hub.
     The backbone outputs patch tokens in last_hidden_state (mean-pool for a global
-    vector, as in MyIJepaClassifier).
+    vector for downstream scoring heads.
     """
     dev = _resolve_device(device)
     if dtype is None:
@@ -171,7 +172,8 @@ class TextConditioningModule(nn.Module):
 
 class FusionHead(nn.Module):
     """
-    Fuses a pooled visual vector (I-JEPA) and a text conditioning vector.
+    Fuses a pooled visual vector (I-JEPA) and a text conditioning vector
+    via cross-attention (visual query attends to text key/value).
     Only this module and TextConditioningModule (adapter) are trained when the
     backbones are frozen.
     """
@@ -180,26 +182,62 @@ class FusionHead(nn.Module):
         self,
         vis_dim: int,
         cond_dim: int,
-        num_labels: int,
         hidden: int = 512,
+        fusion_type: str = "cross_attention",
     ) -> None:
         super().__init__()
-        in_dim = vis_dim + cond_dim
-        self.mlp = nn.Sequential(
-            nn.LayerNorm(in_dim),
-            nn.Linear(in_dim, hidden),
-            nn.GELU(),
-            nn.Dropout(0.1),
-            nn.Linear(hidden, num_labels),
-        )
+        self.fusion_type = fusion_type
+        if self.fusion_type == "linear":
+            # Pairwise score head: (image, text) -> scalar score.
+            self.score_head = nn.Linear(vis_dim + cond_dim, 1)
+        elif self.fusion_type == "clip_similarity":
+            # CLIP-style pair score: learned projections + normalized dot product with logit scale.
+            self.visual_proj = nn.Linear(vis_dim, hidden, bias=False)
+            self.text_proj = nn.Linear(cond_dim, hidden, bias=False)
+            self.logit_scale = nn.Parameter(torch.tensor(math.log(1.0 / 0.07)))
+        elif self.fusion_type == "cross_attention":
+            n_heads = 8
+            while n_heads > 1 and hidden % n_heads != 0:
+                n_heads //= 2
+            self.visual_proj = nn.Linear(vis_dim, hidden)
+            self.text_proj = nn.Linear(cond_dim, hidden)
+            self.cross_attn = nn.MultiheadAttention(
+                embed_dim=hidden, num_heads=n_heads, dropout=0.1, batch_first=True
+            )
+            self.score_head = nn.Sequential(
+                nn.LayerNorm(2 * hidden),
+                nn.Linear(2 * hidden, hidden),
+                nn.GELU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden, 1),
+            )
+        else:
+            raise ValueError(
+                f"Unsupported fusion_type={self.fusion_type!r}; expected 'cross_attention', 'linear', or 'clip_similarity'"
+            )
 
     def forward(self, visual: torch.Tensor, text_cond: torch.Tensor) -> torch.Tensor:
-        return self.mlp(torch.cat([visual, text_cond], dim=-1))
+        if self.fusion_type == "linear":
+            s = self.score_head(torch.cat([visual, text_cond], dim=-1))
+            return s.squeeze(-1)
+        if self.fusion_type == "clip_similarity":
+            v = nn.functional.normalize(self.visual_proj(visual), dim=-1)
+            t = nn.functional.normalize(self.text_proj(text_cond), dim=-1)
+            # Same scaling form as CLIP: exp(logit_scale) * cosine_similarity.
+            scale = self.logit_scale.exp().clamp(max=100.0)
+            return (v * t).sum(dim=-1) * scale
+        # One-token cross-attention: visual token queries the conditioned text token.
+        q = self.visual_proj(visual).unsqueeze(1)
+        kv = self.text_proj(text_cond).unsqueeze(1)
+        attn_out, _ = self.cross_attn(query=q, key=kv, value=kv, need_weights=False)
+        fused = torch.cat([q.squeeze(1), attn_out.squeeze(1)], dim=-1)
+        s = self.score_head(fused)
+        return s.squeeze(-1)
 
 
 class TextConditionedIJepa(nn.Module):
     """
-    Frozen I-JEPA trunk + trainable text conditioning + fusion classifier.
+    Frozen I-JEPA trunk + trainable text conditioning + fusion scorer.
     Visual features are detached so gradients do not flow into the I-JEPA weights.
     """
 
@@ -210,6 +248,7 @@ class TextConditionedIJepa(nn.Module):
         clip_id: str = DEFAULT_CLIP_TEXT_ID,
         cond_dim: int = 256,
         fusion_hidden: int = 512,
+        fusion_type: str = "cross_attention",
         freeze_text_encoder: bool = True,
     ) -> None:
         super().__init__()
@@ -224,8 +263,46 @@ class TextConditionedIJepa(nn.Module):
             freeze_text_encoder=freeze_text_encoder,
         )
         self.fusion = FusionHead(
-            vis_dim=vis_dim, cond_dim=cond_dim, num_labels=num_labels, hidden=fusion_hidden
+            vis_dim=vis_dim,
+            cond_dim=cond_dim,
+            hidden=fusion_hidden,
+            fusion_type=fusion_type,
         )
+        self.num_labels = num_labels
+        self.cond_dim = cond_dim
+
+    def encode_image(self, pixel_values: torch.Tensor) -> torch.Tensor:
+        with torch.inference_mode():
+            enc = self.backbone(pixel_values=pixel_values)
+            z = enc.last_hidden_state.float().mean(dim=1).detach()
+        return z
+
+    def encode_text(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        return self.text_cond(input_ids, attention_mask)
+
+    def score_pairs(self, image_feats: torch.Tensor, text_feats: torch.Tensor) -> torch.Tensor:
+        """Pairwise score for aligned rows: (B,Dv) x (B,Dt) -> (B,)."""
+        return self.fusion(image_feats, text_feats)
+
+    def score_candidates(
+        self, image_feats: torch.Tensor, candidate_text_embeds: torch.Tensor, chunk_size: int = 256
+    ) -> torch.Tensor:
+        """
+        Score all candidates for each image.
+        image_feats: (B, Dv), candidate_text_embeds: (C, Dt) -> scores: (B, C)
+        """
+        b = image_feats.size(0)
+        c = candidate_text_embeds.size(0)
+        out_chunks: list[torch.Tensor] = []
+        for s in range(0, c, chunk_size):
+            e = min(c, s + chunk_size)
+            t = candidate_text_embeds[s:e]  # (Cc, Dt)
+            cc = t.size(0)
+            img_rep = image_feats.unsqueeze(1).expand(-1, cc, -1).reshape(b * cc, -1)
+            txt_rep = t.unsqueeze(0).expand(b, -1, -1).reshape(b * cc, -1)
+            sc = self.score_pairs(img_rep, txt_rep).view(b, cc)
+            out_chunks.append(sc)
+        return torch.cat(out_chunks, dim=1)
 
     def forward(
         self,
@@ -237,71 +314,23 @@ class TextConditionedIJepa(nn.Module):
         neg_attention_mask: torch.Tensor | None = None,
         contrast_loss_weight: float = 0.0,
     ) -> dict[str, Any]:
-        with torch.inference_mode():
-            enc = self.backbone(pixel_values=pixel_values)
-            # Detach: train fusion + text adapter only, not I-JEPA
-            z = enc.last_hidden_state.float().mean(dim=1).detach()
-        c = self.text_cond(input_ids, attention_mask)
-        logits = self.fusion(z, c)
-
+        # Backward-compatible pairwise forward for a provided text batch.
+        z = self.encode_image(pixel_values)
+        c = self.encode_text(input_ids, attention_mask)
+        pair_scores = self.score_pairs(z, c)
         loss: torch.Tensor | None = None
         loss_ce: torch.Tensor | None = None
         loss_contrast: torch.Tensor | None = None
         if labels is not None:
-            loss_ce = nn.functional.cross_entropy(logits, labels)
+            # Keep a finite scalar for logging in legacy calls.
+            loss_ce = pair_scores.new_zeros(())
             loss = loss_ce
-        if (
-            labels is not None
-            and contrast_loss_weight > 0
-            and neg_input_ids is not None
-            and neg_attention_mask is not None
-        ):
-            b = z.size(0)
-            c_neg = self.text_cond(neg_input_ids, neg_attention_mask)
-            z_rep = z.repeat_interleave(4, dim=0)
-            logits_neg = self.fusion(z_rep, c_neg)
-            logits_neg = logits_neg.view(b, 4, -1)
-            y = labels.view(b, 1, 1).expand(b, 4, 1)
-            s_pos = logits.gather(1, labels.view(b, 1)).squeeze(1)
-            s_neg = logits_neg.gather(2, y).squeeze(2)
-            stack = torch.cat([s_pos.unsqueeze(1), s_neg], dim=1)
-            loss_contrast = nn.functional.cross_entropy(
-                stack, torch.zeros(b, device=stack.device, dtype=torch.long)
-            )
-            assert loss is not None
-            loss = loss + contrast_loss_weight * loss_contrast
         return {
             "loss": loss,
-            "logits": logits,
+            "logits": pair_scores,
             "loss_ce": loss_ce,
             "loss_contrast": loss_contrast,
         }
-
-
-class MyIJepaClassifier(nn.Module):
-    def __init__(self, model_name: str = DEFAULT_IJEPA_ID, num_labels: int = 2):
-        super().__init__()
-        self.backbone = AutoModel.from_pretrained(model_name)
-        hidden_size = self.backbone.config.hidden_size
-
-        self.head = nn.Sequential(
-            nn.LayerNorm(hidden_size),
-            nn.Linear(hidden_size, 256),
-            nn.GELU(),
-            nn.Dropout(0.1),
-            nn.Linear(256, num_labels),
-        )
-
-    def forward(self, pixel_values, labels=None):
-        outputs = self.backbone(pixel_values=pixel_values)
-        x = outputs.last_hidden_state.mean(dim=1)
-        logits = self.head(x)
-
-        loss = None
-        if labels is not None:
-            loss = nn.CrossEntropyLoss()(logits, labels)
-
-        return {"loss": loss, "logits": logits}
 
 
 def _random_pil_image(size: int = 224) -> Image.Image:
@@ -325,13 +354,6 @@ def _run_smoke_test(model_id: str, cpu: bool) -> None:
         out = pipe.model(**inputs)
     seq = out.last_hidden_state
     print(f"last_hidden_state shape: {tuple(seq.shape)}")
-
-    clf = MyIJepaClassifier(model_name=model_id, num_labels=2)
-    clf.to(pipe.device)
-    clf.eval()
-    with torch.inference_mode():
-        z = clf(pixel_values=inputs["pixel_values"])
-    print(f"custom head logits shape: {tuple(z['logits'].shape)}")
 
 
 def _msamples(x: int) -> int | None:
