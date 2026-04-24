@@ -75,6 +75,8 @@ def _write_raw_csv(rows: list[dict[str, object]], out_csv: Path) -> None:
         "unseen_top1",
         "unseen_top5",
         "auc_csp_style",
+        "lr",
+        "weight_decay",
         "batch_size",
         "checkpoint",
         "from_hub",

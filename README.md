@@ -65,23 +65,33 @@ uv run python text_cond_train.py --eval-only --from-hub user/model --dataset csp
 - For `csp_*` and `cspref_*`: use official Hub `train/val/test` directly.
 - For non-CSP datasets: split Hub train into train/val and use configured test logic from `vision_data.py`.
 
-## Batch script: two fusions / grid / multi-seed
+## Batch script: automatic two-stage / single / grid
 
-Default (reads `.env`, runs 5 seeds):
+Default (`MODE=two_stage`, reads `.env`):
+
+- Stage 1: run grid on one seed (`STAGE1_SEED`, default `0`)
+- Auto-select top-k configs per fusion on val (`TOP_K`, default `1`)
+- Stage 2: run selected configs on 5 seeds (`STAGE2_SEED_LIST`, default `0,1,2,3,4`)
 
 ```bash
 bash train_two_fusions_and_push.sh
 ```
 
-Grid search:
+Other modes:
 
 ```bash
-GRID_SEARCH=1 bash train_two_fusions_and_push.sh
+MODE=single bash train_two_fusions_and_push.sh
+MODE=grid bash train_two_fusions_and_push.sh
 ```
 
 Optional overrides:
 
-- `SEED_LIST=0,1,2,3,4`
+- `STAGE1_SEED=0`
+- `STAGE2_SEED_LIST=0,1,2,3,4`
+- `TOP_K=1`
+- `SELECT_SPLIT=val`
+- `SELECT_METRIC=auc_csp_style`
+- `SEED_LIST=0,1,2,3,4` (for `MODE=single/grid`)
 - `LR_LIST=5e-3,5e-4,5e-5`
 - `BATCH_SIZE_LIST=128,256`
 - `WEIGHT_DECAY_LIST=1e-5,5e-5`
@@ -89,7 +99,6 @@ Optional overrides:
 
 Output artifacts from batch script:
 
-- Raw eval JSONs: `results/raw/*.json`
-- Raw merged table: `results/raw_eval_metrics.csv`
-- Aggregated summary: `results/summary_metrics.csv`, `results/summary_metrics.json`
-- Plots: `results/plots/*.png`
+- `MODE=two_stage`: `results/stage1/*` and `results/stage2/*`
+- `MODE=single`: `results/single/*`
+- `MODE=grid`: `results/grid/*`

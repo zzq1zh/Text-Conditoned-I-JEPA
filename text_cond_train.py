@@ -1104,6 +1104,8 @@ def run_eval_only(args: argparse.Namespace) -> None:
             "experiment_tag": (args.experiment_tag or "").strip(),
             "checkpoint": ckpt,
             "from_hub": from_hub,
+            "lr": float(args.lr),
+            "weight_decay": float(args.weight_decay),
             "loss": float(loss),
             "top1": float(top1),
             "top5": float(top5),
