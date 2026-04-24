@@ -37,6 +37,7 @@ WEIGHT_DECAY="${WEIGHT_DECAY:-1e-5}"
 TEXT_BANK_CHUNK_SIZE="${TEXT_BANK_CHUNK_SIZE:-512}"
 MODEL_PREFIX="${MODEL_PREFIX:-text-cond-ijepa}"
 SAVE_DIR="${SAVE_DIR:-checkpoints}"
+RESULTS_DIR="${RESULTS_DIR:-results}"
 HF_PRIVATE="${HF_PRIVATE:-1}"     # 1 -> --hub-private, 0 -> public
 USE_WANDB="${USE_WANDB:-1}"       # 1 -> enable W&B, 0 -> --no-wandb
 GRID_SEARCH="${GRID_SEARCH:-0}"   # 1 -> use LR/BATCH/WD grid, 0 -> single config
@@ -45,6 +46,7 @@ BATCH_SIZE_LIST="${BATCH_SIZE_LIST:-128,256}"
 WEIGHT_DECAY_LIST="${WEIGHT_DECAY_LIST:-1e-5,5e-5}"
 
 mkdir -p "${SAVE_DIR}"
+mkdir -p "${RESULTS_DIR}/raw" "${RESULTS_DIR}/plots"
 
 extra_args=()
 if [[ "${HF_PRIVATE}" == "1" ]]; then extra_args+=(--hub-private); fi
@@ -66,8 +68,11 @@ train_and_push() {
   local weight_decay="$5"
   local run_suffix="$6"
   local seed="$7"
+  local experiment_tag="${tag}-${run_suffix}"
   local ckpt_path="${SAVE_DIR}/${DATASET}_${tag}_${run_suffix}.pt"
   local hub_repo="${HF_NAMESPACE}/${MODEL_PREFIX}-${DATASET}-${tag}-${run_suffix}"
+  local val_metrics_json="${RESULTS_DIR}/raw/${experiment_tag}_val.json"
+  local test_metrics_json="${RESULTS_DIR}/raw/${experiment_tag}_test.json"
 
   local cmd=(
     uv run python text_cond_train.py
@@ -104,6 +109,8 @@ train_and_push() {
     --fusion-type "${fusion_type}" \
     --checkpoint "${ckpt_path}" \
     --eval-split val \
+    --experiment-tag "${experiment_tag}" \
+    --metrics-json "${val_metrics_json}" \
     "${extra_args[@]}"
 
   echo "---------------- Eval on test ----------------"
@@ -116,6 +123,8 @@ train_and_push() {
     --fusion-type "${fusion_type}" \
     --checkpoint "${ckpt_path}" \
     --eval-split test \
+    --experiment-tag "${experiment_tag}" \
+    --metrics-json "${test_metrics_json}" \
     "${extra_args[@]}"
 }
 
@@ -139,7 +148,7 @@ if [[ "${GRID_SEARCH}" == "1" ]]; then
       done
     done
   done
-  echo "Done. Grid search complete. Seeds: ${#seed_grid[@]}, grids per seed: ${run_idx}, total trainings: $((run_idx * 2))."
+  echo "Done. Grid search complete. Total (seed,grid) combos: ${run_idx}; total trainings: $((run_idx * 2))."
 else
   for seed_i in "${seed_grid[@]}"; do
     suffix="s${seed_i}-default-lr$(normalize_token "${LR}")-bs$(normalize_token "${BATCH_SIZE}")-wd$(normalize_token "${WEIGHT_DECAY}")"
@@ -148,3 +157,11 @@ else
   done
   echo "Done. Both models were trained/evaluated for seeds: ${SEED_LIST}."
 fi
+
+echo "Generating automatic summary tables and plots..."
+uv run python summarize_eval_metrics.py \
+  --metrics-dir "${RESULTS_DIR}/raw" \
+  --raw-csv "${RESULTS_DIR}/raw_eval_metrics.csv" \
+  --summary-csv "${RESULTS_DIR}/summary_metrics.csv" \
+  --summary-json "${RESULTS_DIR}/summary_metrics.json" \
+  --plot-dir "${RESULTS_DIR}/plots"

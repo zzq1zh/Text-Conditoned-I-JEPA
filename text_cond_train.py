@@ -347,41 +347,6 @@ def _clip_contrastive_loss(pair_scores: torch.Tensor) -> torch.Tensor:
 
 
 @torch.inference_mode()
-def _compute_auc_ovr_macro(
-    logits_list: list[torch.Tensor], labels_list: list[torch.Tensor], num_classes: int
-) -> float:
-    """
-    Compute ROC-AUC for multiclass classification using OVR macro averaging.
-    Returns NaN when it cannot be computed (e.g., missing classes in the split).
-    """
-    if not logits_list or not labels_list:
-        return float("nan")
-    try:
-        from sklearn.metrics import roc_auc_score
-    except ImportError:
-        return float("nan")
-
-    logits = torch.cat(logits_list, dim=0)
-    labels = torch.cat(labels_list, dim=0)
-    if logits.ndim != 2 or labels.ndim != 1:
-        return float("nan")
-    if logits.size(0) != labels.size(0) or logits.size(1) != num_classes:
-        return float("nan")
-    if labels.numel() == 0:
-        return float("nan")
-
-    probs = torch.softmax(logits, dim=-1).cpu().numpy()
-    y = labels.cpu().numpy()
-    try:
-        if num_classes == 2:
-            return float(roc_auc_score(y, probs[:, 1]))
-        return float(roc_auc_score(y, probs, multi_class="ovr", average="macro"))
-    except ValueError:
-        # Typical on tiny subsets where not all classes are present.
-        return float("nan")
-
-
-@torch.inference_mode()
 def _make_wandb_images(
     pixel_values: torch.Tensor,
     labels: torch.Tensor,
@@ -515,7 +480,7 @@ def _eval_loss_topk(
     use_amp: bool,
     num_classes: int,
     use_bidirectional_infonce: bool = True,
-) -> tuple[float, float, float, float, float]:
+) -> tuple[float, float, float, float]:
     """
     Mean loss (if labels provided), top-1 accuracy, top-5 accuracy.
     Top-k uses k = min(5, num_classes).
@@ -556,10 +521,9 @@ def _eval_loss_topk(
             n_ok5 += (topk_idx == y.unsqueeze(-1)).any(dim=-1).sum().item()
         n += y.size(0)
     if n == 0:
-        return 0.0, 0.0, 0.0, float("nan"), float("nan")
-    auc_ovr_macro = _compute_auc_ovr_macro(all_logits, all_labels, num_classes)
+        return 0.0, 0.0, 0.0, float("nan")
     auc_csp_style = _compute_auc_csp_style(all_logits, all_labels, all_seen_flags, num_classes)
-    return total_loss / n, n_ok1 / n, n_ok5 / n, auc_ovr_macro, auc_csp_style
+    return total_loss / n, n_ok1 / n, n_ok5 / n, auc_csp_style
 
 
 def _export_trainable_state_dict(model: TextConditionedIJepa) -> dict[str, torch.Tensor]:
@@ -893,7 +857,7 @@ def run_finetune(args: argparse.Namespace) -> None:
             )
             global_step += 1
 
-        val_loss, val_top1, val_top5, val_auc_ovr, val_auc_csp = _eval_loss_topk(
+        val_loss, val_top1, val_top5, val_auc_csp = _eval_loss_topk(
             model,
             val_loader,
             device,
@@ -911,7 +875,6 @@ def run_finetune(args: argparse.Namespace) -> None:
                     "val/loss": val_loss,
                     "val/acc@1": val_top1,
                     "val/acc@5": val_top5,
-                    "val/auc_ovr_macro": val_auc_ovr,
                     "val/auc_csp_style": val_auc_csp,
                 },
                 step=global_step,
@@ -919,7 +882,7 @@ def run_finetune(args: argparse.Namespace) -> None:
         print(
             f"Epoch {epoch+1}/{args.epochs}  val_loss={val_loss:.4f}  "
             f"top-1={val_top1*100:.2f}%  top-5={val_top5*100:.2f}%  "
-            f"auc_csp_style={val_auc_csp:.4f}  auc_ovr_macro={val_auc_ovr:.4f}  "
+            f"auc_csp_style={val_auc_csp:.4f}  "
             f"(train samples={len(train_ds)}, val samples={len(val_ds)})"
         )
 
@@ -1044,7 +1007,7 @@ def run_eval_only(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
-    loss, top1, top5, auc_ovr, auc_csp = _eval_loss_topk(
+    loss, top1, top5, auc_csp = _eval_loss_topk(
         model,
         loader,
         device,
@@ -1055,9 +1018,30 @@ def run_eval_only(args: argparse.Namespace) -> None:
     )
     split_name = f"{args.eval_split} (n={len(eval_ds)})"
     print(
-        f"\n{split_name}\n  loss: {loss:.4f}\n  top-1: {top1*100:.2f}%\n  top-5: {top5*100:.2f}%\n  auc_csp_style: {auc_csp:.4f}\n  auc_ovr_macro: {auc_ovr:.4f}\n",
+        f"\n{split_name}\n  loss: {loss:.4f}\n  top-1: {top1*100:.2f}%\n  top-5: {top5*100:.2f}%\n  auc_csp_style: {auc_csp:.4f}\n",
         flush=True,
     )
+    metrics_json = (args.metrics_json or "").strip()
+    if metrics_json:
+        p = Path(metrics_json)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "dataset": args.dataset,
+            "split": args.eval_split,
+            "seed": int(args.seed),
+            "fusion_type": str(getattr(model.fusion, "fusion_type", args.fusion_type)),
+            "experiment_tag": (args.experiment_tag or "").strip(),
+            "checkpoint": ckpt,
+            "from_hub": from_hub,
+            "loss": float(loss),
+            "top1": float(top1),
+            "top5": float(top5),
+            "auc_csp_style": float(auc_csp),
+            "batch_size": int(args.batch_size),
+            "timestamp_unix": int(time.time()),
+        }
+        p.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+        print(f"Wrote eval metrics JSON to {p}", flush=True)
     if not args.no_wandb:
         import wandb
 
@@ -1091,7 +1075,6 @@ def run_eval_only(args: argparse.Namespace) -> None:
                 f"{args.eval_split}/acc@1": float(top1),
                 f"{args.eval_split}/acc@5": float(top5),
                 f"{args.eval_split}/auc_csp_style": float(auc_csp),
-                f"{args.eval_split}/auc_ovr_macro": float(auc_ovr),
             },
             step=0,
         )
@@ -1254,6 +1237,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=0,
         help="Cap eval split size; 0 = full (applies to the chosen --eval-split only)",
+    )
+    g.add_argument(
+        "--metrics-json",
+        default="",
+        help="Optional JSON file path to write eval metrics.",
+    )
+    g.add_argument(
+        "--experiment-tag",
+        default="",
+        help="Optional experiment tag stored in --metrics-json output.",
     )
     return p
 

@@ -7,7 +7,7 @@ Minimal training/evaluation pipeline for text-conditioned I-JEPA on CIFAR and CS
 - Frozen I-JEPA image backbone + CLIP text tower (text tower can be unfrozen with `--finetune-clip-text`)
 - Fusion heads: `cross_attention`, `linear`, `clip_similarity`
 - **Single training objective**: bidirectional InfoNCE (CLIP-style contrastive loss)
-- Eval metrics: top-1, top-5, `auc_ovr_macro`, `auc_csp_style`
+- Eval metrics: top-1, top-5, `auc_csp_style`
 - Optional W&B logging and optional Hugging Face model upload
 
 ## Setup
@@ -86,3 +86,10 @@ Optional overrides:
 - `BATCH_SIZE_LIST=128,256`
 - `WEIGHT_DECAY_LIST=1e-5,5e-5`
 - `DATASET`, `EPOCHS`, `HF_NAMESPACE`, `MODEL_PREFIX`, `SAVE_DIR`
+
+Output artifacts from batch script:
+
+- Raw eval JSONs: `results/raw/*.json`
+- Raw merged table: `results/raw_eval_metrics.csv`
+- Aggregated summary: `results/summary_metrics.csv`, `results/summary_metrics.json`
+- Plots: `results/plots/*.png`
