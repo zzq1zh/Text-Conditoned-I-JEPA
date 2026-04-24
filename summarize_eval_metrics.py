@@ -70,6 +70,10 @@ def _write_raw_csv(rows: list[dict[str, object]], out_csv: Path) -> None:
         "loss",
         "top1",
         "top5",
+        "seen_top1",
+        "seen_top5",
+        "unseen_top1",
+        "unseen_top5",
         "auc_csp_style",
         "batch_size",
         "checkpoint",
@@ -93,7 +97,16 @@ def _aggregate(rows: list[dict[str, object]]) -> list[dict[str, object]]:
         )
         groups.setdefault(key, []).append(r)
 
-    metrics = ["loss", "top1", "top5", "auc_csp_style"]
+    metrics = [
+        "loss",
+        "top1",
+        "top5",
+        "seen_top1",
+        "seen_top5",
+        "unseen_top1",
+        "unseen_top5",
+        "auc_csp_style",
+    ]
     out: list[dict[str, object]] = []
     for (cfg, fusion, split), items in sorted(groups.items()):
         row: dict[str, object] = {
@@ -128,6 +141,14 @@ def _write_summary_csv(rows: list[dict[str, object]], out_csv: Path) -> None:
         "top1_std",
         "top5_mean",
         "top5_std",
+        "seen_top1_mean",
+        "seen_top1_std",
+        "seen_top5_mean",
+        "seen_top5_std",
+        "unseen_top1_mean",
+        "unseen_top1_std",
+        "unseen_top5_mean",
+        "unseen_top5_std",
         "auc_csp_style_mean",
         "auc_csp_style_std",
     ]
@@ -214,6 +235,10 @@ def main() -> None:
 
     _plot_metric(agg, "top1", plot_dir / "top1_summary.png")
     _plot_metric(agg, "top5", plot_dir / "top5_summary.png")
+    _plot_metric(agg, "seen_top1", plot_dir / "seen_top1_summary.png")
+    _plot_metric(agg, "seen_top5", plot_dir / "seen_top5_summary.png")
+    _plot_metric(agg, "unseen_top1", plot_dir / "unseen_top1_summary.png")
+    _plot_metric(agg, "unseen_top5", plot_dir / "unseen_top5_summary.png")
     _plot_metric(agg, "auc_csp_style", plot_dir / "auc_csp_style_summary.png")
     _plot_metric(agg, "loss", plot_dir / "loss_summary.png")
 

@@ -480,7 +480,7 @@ def _eval_loss_topk(
     use_amp: bool,
     num_classes: int,
     use_bidirectional_infonce: bool = True,
-) -> tuple[float, float, float, float]:
+) -> tuple[float, float, float, float, float, float, float, float]:
     """
     Mean loss (if labels provided), top-1 accuracy, top-5 accuracy.
     Top-k uses k = min(5, num_classes).
@@ -489,6 +489,12 @@ def _eval_loss_topk(
     n_ok1 = 0
     n_ok5 = 0
     n = 0
+    seen_ok1 = 0
+    seen_ok5 = 0
+    seen_n = 0
+    unseen_ok1 = 0
+    unseen_ok5 = 0
+    unseen_n = 0
     total_loss = 0.0
     all_logits: list[torch.Tensor] = []
     all_labels: list[torch.Tensor] = []
@@ -518,12 +524,50 @@ def _eval_loss_topk(
         n_ok1 += (pred1 == y).sum().item()
         if k_top > 0:
             topk_idx = logits.topk(k_top, dim=-1).indices
-            n_ok5 += (topk_idx == y.unsqueeze(-1)).any(dim=-1).sum().item()
+            hit5 = (topk_idx == y.unsqueeze(-1)).any(dim=-1)
+            n_ok5 += hit5.sum().item()
+        else:
+            hit5 = torch.zeros_like(y, dtype=torch.bool)
+        if "pair_seen_in_train" in batch:
+            seen_mask = batch["pair_seen_in_train"].to(device=device, dtype=torch.bool)
+            unseen_mask = ~seen_mask
+            seen_n += int(seen_mask.sum().item())
+            unseen_n += int(unseen_mask.sum().item())
+            if seen_n > 0:
+                seen_ok1 += int((pred1[seen_mask] == y[seen_mask]).sum().item())
+                if k_top > 0:
+                    seen_ok5 += int(hit5[seen_mask].sum().item())
+            if unseen_n > 0:
+                unseen_ok1 += int((pred1[unseen_mask] == y[unseen_mask]).sum().item())
+                if k_top > 0:
+                    unseen_ok5 += int(hit5[unseen_mask].sum().item())
         n += y.size(0)
     if n == 0:
-        return 0.0, 0.0, 0.0, float("nan")
+        return (
+            0.0,
+            0.0,
+            0.0,
+            float("nan"),
+            float("nan"),
+            float("nan"),
+            float("nan"),
+            float("nan"),
+        )
     auc_csp_style = _compute_auc_csp_style(all_logits, all_labels, all_seen_flags, num_classes)
-    return total_loss / n, n_ok1 / n, n_ok5 / n, auc_csp_style
+    seen_top1 = float(seen_ok1 / seen_n) if seen_n > 0 else float("nan")
+    seen_top5 = float(seen_ok5 / seen_n) if seen_n > 0 else float("nan")
+    unseen_top1 = float(unseen_ok1 / unseen_n) if unseen_n > 0 else float("nan")
+    unseen_top5 = float(unseen_ok5 / unseen_n) if unseen_n > 0 else float("nan")
+    return (
+        total_loss / n,
+        n_ok1 / n,
+        n_ok5 / n,
+        auc_csp_style,
+        seen_top1,
+        seen_top5,
+        unseen_top1,
+        unseen_top5,
+    )
 
 
 def _export_trainable_state_dict(model: TextConditionedIJepa) -> dict[str, torch.Tensor]:
@@ -857,7 +901,16 @@ def run_finetune(args: argparse.Namespace) -> None:
             )
             global_step += 1
 
-        val_loss, val_top1, val_top5, val_auc_csp = _eval_loss_topk(
+        (
+            val_loss,
+            val_top1,
+            val_top5,
+            val_auc_csp,
+            val_seen_top1,
+            val_seen_top5,
+            val_unseen_top1,
+            val_unseen_top5,
+        ) = _eval_loss_topk(
             model,
             val_loader,
             device,
@@ -876,12 +929,18 @@ def run_finetune(args: argparse.Namespace) -> None:
                     "val/acc@1": val_top1,
                     "val/acc@5": val_top5,
                     "val/auc_csp_style": val_auc_csp,
+                    "val/seen_acc@1": val_seen_top1,
+                    "val/seen_acc@5": val_seen_top5,
+                    "val/unseen_acc@1": val_unseen_top1,
+                    "val/unseen_acc@5": val_unseen_top5,
                 },
                 step=global_step,
             )
         print(
             f"Epoch {epoch+1}/{args.epochs}  val_loss={val_loss:.4f}  "
             f"top-1={val_top1*100:.2f}%  top-5={val_top5*100:.2f}%  "
+            f"seen_top1={val_seen_top1*100:.2f}%  seen_top5={val_seen_top5*100:.2f}%  "
+            f"unseen_top1={val_unseen_top1*100:.2f}%  unseen_top5={val_unseen_top5*100:.2f}%  "
             f"auc_csp_style={val_auc_csp:.4f}  "
             f"(train samples={len(train_ds)}, val samples={len(val_ds)})"
         )
@@ -1007,7 +1066,16 @@ def run_eval_only(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
-    loss, top1, top5, auc_csp = _eval_loss_topk(
+    (
+        loss,
+        top1,
+        top5,
+        auc_csp,
+        seen_top1,
+        seen_top5,
+        unseen_top1,
+        unseen_top5,
+    ) = _eval_loss_topk(
         model,
         loader,
         device,
@@ -1018,7 +1086,10 @@ def run_eval_only(args: argparse.Namespace) -> None:
     )
     split_name = f"{args.eval_split} (n={len(eval_ds)})"
     print(
-        f"\n{split_name}\n  loss: {loss:.4f}\n  top-1: {top1*100:.2f}%\n  top-5: {top5*100:.2f}%\n  auc_csp_style: {auc_csp:.4f}\n",
+        f"\n{split_name}\n  loss: {loss:.4f}\n  top-1: {top1*100:.2f}%\n  top-5: {top5*100:.2f}%\n  "
+        f"seen_top-1: {seen_top1*100:.2f}%\n  seen_top-5: {seen_top5*100:.2f}%\n  "
+        f"unseen_top-1: {unseen_top1*100:.2f}%\n  unseen_top-5: {unseen_top5*100:.2f}%\n  "
+        f"auc_csp_style: {auc_csp:.4f}\n",
         flush=True,
     )
     metrics_json = (args.metrics_json or "").strip()
@@ -1036,6 +1107,10 @@ def run_eval_only(args: argparse.Namespace) -> None:
             "loss": float(loss),
             "top1": float(top1),
             "top5": float(top5),
+            "seen_top1": float(seen_top1),
+            "seen_top5": float(seen_top5),
+            "unseen_top1": float(unseen_top1),
+            "unseen_top5": float(unseen_top5),
             "auc_csp_style": float(auc_csp),
             "batch_size": int(args.batch_size),
             "timestamp_unix": int(time.time()),
@@ -1074,6 +1149,10 @@ def run_eval_only(args: argparse.Namespace) -> None:
                 f"{args.eval_split}/loss": float(loss),
                 f"{args.eval_split}/acc@1": float(top1),
                 f"{args.eval_split}/acc@5": float(top5),
+                f"{args.eval_split}/seen_acc@1": float(seen_top1),
+                f"{args.eval_split}/seen_acc@5": float(seen_top5),
+                f"{args.eval_split}/unseen_acc@1": float(unseen_top1),
+                f"{args.eval_split}/unseen_acc@5": float(unseen_top5),
                 f"{args.eval_split}/auc_csp_style": float(auc_csp),
             },
             step=0,
