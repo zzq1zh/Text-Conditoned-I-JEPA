@@ -9,7 +9,7 @@ set -euo pipefail
 # Example:
 #   HF_TOKEN=xxx HF_NAMESPACE=zzq1zh bash train_two_fusions_and_push.sh
 # Optional overrides:
-#   DATASET=cspref_mit_states EPOCHS=20 BATCH_SIZE=128 SEED=0 bash train_two_fusions_and_push.sh
+#   DATASET=cspref_mit_states EPOCHS=20 BATCH_SIZE=128 SEED_LIST=0,1,2,3,4 bash train_two_fusions_and_push.sh
 # Grid search example:
 #   GRID_SEARCH=1 LR_LIST=5e-3,5e-4,5e-5 BATCH_SIZE_LIST=128,256 WEIGHT_DECAY_LIST=1e-5,5e-5 \
 #   HF_TOKEN=xxx HF_NAMESPACE=zzq1zh bash train_two_fusions_and_push.sh
@@ -29,7 +29,7 @@ fi
 
 HF_NAMESPACE="${HF_NAMESPACE:-zzq1zh}"
 DATASET="${DATASET:-cspref_mit_states}"
-SEED="${SEED:-0}"
+SEED_LIST="${SEED_LIST:-0,1,2,3,4}"
 EPOCHS="${EPOCHS:-20}"
 BATCH_SIZE="${BATCH_SIZE:-128}"
 LR="${LR:-5e-5}"
@@ -65,13 +65,14 @@ train_and_push() {
   local batch_size="$4"
   local weight_decay="$5"
   local run_suffix="$6"
+  local seed="$7"
   local ckpt_path="${SAVE_DIR}/${DATASET}_${tag}_${run_suffix}.pt"
   local hub_repo="${HF_NAMESPACE}/${MODEL_PREFIX}-${DATASET}-${tag}-${run_suffix}"
 
   local cmd=(
     uv run python text_cond_train.py
     --dataset "${DATASET}"
-    --seed "${SEED}"
+    --seed "${seed}"
     --epochs "${EPOCHS}"
     --batch-size "${batch_size}"
     --lr "${lr}"
@@ -86,12 +87,39 @@ train_and_push() {
 
   echo "============================================================"
   echo "Training fusion_type=${fusion_type}"
+  echo "seed=${seed}"
   echo "lr=${lr} batch_size=${batch_size} weight_decay=${weight_decay}"
   echo "Checkpoint: ${ckpt_path}"
   echo "Hub repo:   ${hub_repo}"
   echo "============================================================"
   "${cmd[@]}"
+
+  echo "---------------- Eval on val ----------------"
+  uv run python text_cond_train.py \
+    --eval-only \
+    --dataset "${DATASET}" \
+    --seed "${seed}" \
+    --batch-size "${batch_size}" \
+    --text-bank-chunk-size "${TEXT_BANK_CHUNK_SIZE}" \
+    --fusion-type "${fusion_type}" \
+    --checkpoint "${ckpt_path}" \
+    --eval-split val \
+    "${extra_args[@]}"
+
+  echo "---------------- Eval on test ----------------"
+  uv run python text_cond_train.py \
+    --eval-only \
+    --dataset "${DATASET}" \
+    --seed "${seed}" \
+    --batch-size "${batch_size}" \
+    --text-bank-chunk-size "${TEXT_BANK_CHUNK_SIZE}" \
+    --fusion-type "${fusion_type}" \
+    --checkpoint "${ckpt_path}" \
+    --eval-split test \
+    "${extra_args[@]}"
 }
+
+IFS=',' read -r -a seed_grid <<< "${SEED_LIST}"
 
 if [[ "${GRID_SEARCH}" == "1" ]]; then
   IFS=',' read -r -a lr_grid <<< "${LR_LIST}"
@@ -99,20 +127,24 @@ if [[ "${GRID_SEARCH}" == "1" ]]; then
   IFS=',' read -r -a wd_grid <<< "${WEIGHT_DECAY_LIST}"
 
   run_idx=0
-  for lr_i in "${lr_grid[@]}"; do
-    for bs_i in "${bs_grid[@]}"; do
-      for wd_i in "${wd_grid[@]}"; do
-        run_idx=$((run_idx + 1))
-        suffix="g${run_idx}-lr$(normalize_token "${lr_i}")-bs$(normalize_token "${bs_i}")-wd$(normalize_token "${wd_i}")"
-        train_and_push "clip_similarity" "clip-sim" "${lr_i}" "${bs_i}" "${wd_i}" "${suffix}"
-        train_and_push "cross_attention" "cross-attn" "${lr_i}" "${bs_i}" "${wd_i}" "${suffix}"
+  for seed_i in "${seed_grid[@]}"; do
+    for lr_i in "${lr_grid[@]}"; do
+      for bs_i in "${bs_grid[@]}"; do
+        for wd_i in "${wd_grid[@]}"; do
+          run_idx=$((run_idx + 1))
+          suffix="s${seed_i}-g${run_idx}-lr$(normalize_token "${lr_i}")-bs$(normalize_token "${bs_i}")-wd$(normalize_token "${wd_i}")"
+          train_and_push "clip_similarity" "clip-sim" "${lr_i}" "${bs_i}" "${wd_i}" "${suffix}" "${seed_i}"
+          train_and_push "cross_attention" "cross-attn" "${lr_i}" "${bs_i}" "${wd_i}" "${suffix}" "${seed_i}"
+        done
       done
     done
   done
-  echo "Done. Grid search complete. Total grids: ${run_idx}; total trainings: $((run_idx * 2))."
+  echo "Done. Grid search complete. Seeds: ${#seed_grid[@]}, grids per seed: ${run_idx}, total trainings: $((run_idx * 2))."
 else
-  suffix="default-lr$(normalize_token "${LR}")-bs$(normalize_token "${BATCH_SIZE}")-wd$(normalize_token "${WEIGHT_DECAY}")"
-  train_and_push "clip_similarity" "clip-sim" "${LR}" "${BATCH_SIZE}" "${WEIGHT_DECAY}" "${suffix}"
-  train_and_push "cross_attention" "cross-attn" "${LR}" "${BATCH_SIZE}" "${WEIGHT_DECAY}" "${suffix}"
-  echo "Done. Both models were trained and upload was requested."
+  for seed_i in "${seed_grid[@]}"; do
+    suffix="s${seed_i}-default-lr$(normalize_token "${LR}")-bs$(normalize_token "${BATCH_SIZE}")-wd$(normalize_token "${WEIGHT_DECAY}")"
+    train_and_push "clip_similarity" "clip-sim" "${LR}" "${BATCH_SIZE}" "${WEIGHT_DECAY}" "${suffix}" "${seed_i}"
+    train_and_push "cross_attention" "cross-attn" "${LR}" "${BATCH_SIZE}" "${WEIGHT_DECAY}" "${suffix}" "${seed_i}"
+  done
+  echo "Done. Both models were trained/evaluated for seeds: ${SEED_LIST}."
 fi
