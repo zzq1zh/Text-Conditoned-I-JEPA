@@ -175,7 +175,6 @@ run_grid_for_seed() {
         run_idx=$((run_idx + 1))
         local suffix="s${seed}-g${run_idx}-lr$(normalize_token "${lr_i}")-bs$(normalize_token "${bs_i}")-wd$(normalize_token "${wd_i}")"
         run_train_eval "clip_similarity" "clip-sim" "${lr_i}" "${bs_i}" "${wd_i}" "${suffix}" "${seed}" "${metrics_dir}" "${do_upload}"
-        run_train_eval "cross_attention" "cross-attn" "${lr_i}" "${bs_i}" "${wd_i}" "${suffix}" "${seed}" "${metrics_dir}" "${do_upload}"
       done
     done
   done
@@ -299,7 +298,6 @@ run_single() {
   for s in "${seeds[@]}"; do
     local suffix="s${s}-default-lr$(normalize_token "${LR}")-bs$(normalize_token "${BATCH_SIZE}")-wd$(normalize_token "${WEIGHT_DECAY}")"
     run_train_eval "clip_similarity" "clip-sim" "${LR}" "${BATCH_SIZE}" "${WEIGHT_DECAY}" "${suffix}" "${s}" "${metrics_dir}" "${UPLOAD_SINGLE_GRID}"
-    run_train_eval "cross_attention" "cross-attn" "${LR}" "${BATCH_SIZE}" "${WEIGHT_DECAY}" "${suffix}" "${s}" "${metrics_dir}" "${UPLOAD_SINGLE_GRID}"
   done
   summarize_dir "${metrics_dir}" "${out_dir}"
   echo "Single-mode run complete. Summary: ${out_dir}/summary_metrics.csv"
