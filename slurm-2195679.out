@@ -1,0 +1,17 @@
+## SLURM PROLOG ###############################################################
+##    Job ID : 2195679
+##  Job Name : final_train
+##  Nodelist : gpu2709
+##      CPUs : 4
+##  Mem/Node : 16384 MB
+## Directory : /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA
+##   Job Started : Fri May  1 04:56:05 PM EDT 2026
+###############################################################################
+============================================
+Job ID:    2195679
+Node:      gpu2709.oscar.ccv.brown.edu
+Started:   Fri May  1 04:56:05 PM EDT 2026
+GPU: NVIDIA L40S
+============================================
+Training target: dinov3
+Command: uv run python train_mit_states_clipstyle.py --vision-backbone dino-v3

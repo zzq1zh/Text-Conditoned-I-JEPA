@@ -22,15 +22,6 @@ cd "$SLURM_SUBMIT_DIR"
 
 source ~/.local/bin/env
 
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-else
-  echo "ERROR: python3/python not found in PATH."
-  exit 127
-fi
-
 # Select training script by arg or environment variable.
 # Usage examples:
 #   sbatch slurm_train.sh dinov3
@@ -42,13 +33,13 @@ case "${TARGET}" in
     TRAIN_CMD=(bash train_two_fusions_and_push.sh)
     ;;
   dinov3|dino|dino-v3)
-    TRAIN_CMD=("${PYTHON_BIN}" train_mit_states_clipstyle.py --vision-backbone dino-v3)
+    TRAIN_CMD=(uv run python train_mit_states_clipstyle.py --vision-backbone dino-v3)
     ;;
   ijepa|i-jepa)
-    TRAIN_CMD=("${PYTHON_BIN}" train_mit_states_clipstyle.py --vision-backbone ijepa)
+    TRAIN_CMD=(uv run python train_mit_states_clipstyle.py --vision-backbone ijepa)
     ;;
   vjepa|v-jepa)
-    TRAIN_CMD=("${PYTHON_BIN}" train_mit_states_clipstyle.py --vision-backbone v-jepa)
+    TRAIN_CMD=(uv run python train_mit_states_clipstyle.py --vision-backbone v-jepa)
     ;;
   ./*.sh|*.sh)
     TRAIN_CMD=(bash "${TARGET}")
