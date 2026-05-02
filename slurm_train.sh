@@ -34,8 +34,8 @@ case "${TARGET}" in
   two_fusions|two-stage|two_stage)
     TRAIN_CMD=(bash train_two_fusions_and_push.sh)
     ;;
-  dinov3|dino|dino-v3)
-    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone dino-v3 --dataset "${DATASET}")
+  dinov3|dino)
+    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone dinov3 --dataset "${DATASET}")
     ;;
   ijepa|i-jepa)
     TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone ijepa --dataset "${DATASET}")

@@ -48,7 +48,7 @@ uv run python text_cond_train.py \
 Useful flags:
 
 - `--fusion-type {cross_attention,linear,clip_similarity}`
-- `--vision-backbone {ijepa,vjepa,dino-v3}` (or pass explicit model id with `--ijepa ...`)
+- `--vision-backbone {ijepa,vjepa,dinov3}` (or pass explicit model id with `--ijepa ...`)
 - `--hyperparams-file hyperparameters.json` (按模型/数据集集中管理超参数，CLI 参数优先)
 - `--finetune-clip-text`
 - `--hub-model-id user/repo` (push after training)
@@ -61,7 +61,7 @@ Backbone examples:
 uv run python text_cond_train.py --vision-backbone vjepa --dataset cspref_mit_states --epochs 1
 
 # DINOv3 ViT-B/16
-uv run python text_cond_train.py --vision-backbone dino-v3 --dataset cspref_mit_states --epochs 1
+uv run python text_cond_train.py --vision-backbone dinov3 --dataset cspref_mit_states --epochs 1
 ```
 
 ## Hyperparameters file

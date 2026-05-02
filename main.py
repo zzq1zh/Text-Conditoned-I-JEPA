@@ -68,7 +68,7 @@ DEFAULT_DINOV3_ID = "facebook/dinov3-vitb16-pretrain-lvd1689m"
 VISION_BACKBONE_PRESETS: dict[str, str] = {
     "ijepa": DEFAULT_IJEPA_ID,
     "vjepa": DEFAULT_VJEPA_ID,
-    "dino-v3": DEFAULT_DINOV3_ID,
+    "dinov3": DEFAULT_DINOV3_ID,
 }
 # CLIP text tower for text conditioning (align with open_clip / CLIP paper)
 DEFAULT_CLIP_TEXT_ID = "openai/clip-vit-base-patch32"

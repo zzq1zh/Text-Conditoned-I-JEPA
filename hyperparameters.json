@@ -25,7 +25,7 @@
       "batch_size": 128,
       "lr": 5e-5
     },
-    "dino-v3": {
+    "dinov3": {
       "batch_size": 128,
       "lr": 5e-5
     }
