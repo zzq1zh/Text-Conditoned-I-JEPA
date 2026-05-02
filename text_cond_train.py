@@ -12,6 +12,7 @@ import project_env
 project_env.load_project_env()
 
 import argparse
+import inspect
 import json
 import math
 import os
@@ -343,10 +344,18 @@ def make_collate_fn(
     Text embeddings are precomputed from the global candidate pool.
     """
 
+    call_sig = inspect.signature(processor.__call__)
+    expects_videos = ("videos" in call_sig.parameters) and ("images" not in call_sig.parameters)
+
     def _collate(batch: list[dict[str, Any]]) -> dict[str, torch.Tensor]:
         label_list = [int(d["label"]) for d in batch]
         images = [d["image"] for d in batch]
-        vis = processor(images=images, return_tensors="pt")
+        if expects_videos:
+            # V-JEPA processors expect batched videos; wrap each still image as a 1-frame clip.
+            videos = [[im] for im in images]
+            vis = processor(videos=videos, return_tensors="pt")
+        else:
+            vis = processor(images=images, return_tensors="pt")
         pixel_values = _extract_model_pixel_values(vis)
         out: dict[str, Any] = {
             "pixel_values": pixel_values,

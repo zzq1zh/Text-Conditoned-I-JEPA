@@ -157,6 +157,7 @@ def main() -> None:
     batch_size = _require_hparam(merged, "batch_size", int)
     lr = _require_hparam(merged, "lr", float)
     weight_decay = _require_hparam(merged, "weight_decay", float)
+    max_grad_norm = _require_hparam(merged, "max_grad_norm", float)
     fusion_type = _require_hparam(merged, "fusion_type", str)
 
     if str(args.seed).strip():
@@ -180,6 +181,7 @@ def main() -> None:
     print(f"batch_size: {batch_size}", flush=True)
     print(f"lr: {lr}", flush=True)
     print(f"weight_decay: {weight_decay}", flush=True)
+    print(f"max_grad_norm: {max_grad_norm}", flush=True)
     print(f"fusion_type: {fusion_type}", flush=True)
     print(f"seed_list: {','.join(seeds)}", flush=True)
     print(f"no_wandb: {args.no_wandb}", flush=True)
