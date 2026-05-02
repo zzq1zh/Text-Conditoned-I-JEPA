@@ -101,12 +101,25 @@ def _resolve_wandb_run_name(explicit_name: str, fallback_name: str) -> str:
     return s or fallback_name
 
 
+def _wandb_model_suffix(args: argparse.Namespace) -> str:
+    backbone = (getattr(args, "vision_backbone", "") or "").strip()
+    if backbone:
+        return backbone
+    model_id = (getattr(args, "ijepa", "") or "").strip()
+    if model_id:
+        return model_id.rsplit("/", 1)[-1]
+    return "model"
+
+
 def _default_train_wandb_run_name(args: argparse.Namespace) -> str:
-    return f"train-{args.dataset}-{args.fusion_type}-seed{args.seed}"
+    return f"train-{args.dataset}-{args.fusion_type}-seed{args.seed}-{_wandb_model_suffix(args)}"
 
 
 def _default_eval_wandb_run_name(args: argparse.Namespace, *, fusion_type: str) -> str:
-    return f"eval-{args.dataset}-{args.eval_split}-{fusion_type}-seed{args.seed}"
+    return (
+        f"eval-{args.dataset}-{args.eval_split}-{fusion_type}-"
+        f"seed{args.seed}-{_wandb_model_suffix(args)}"
+    )
 
 
 # Default dataloader: tuned for a single large GPU; lower --batch-size if OOM; --finetune-clip-text may need 8–12
