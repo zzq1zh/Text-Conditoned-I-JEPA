@@ -49,7 +49,7 @@ Useful flags:
 
 - `--fusion-type {cross_attention,linear,clip_similarity}`
 - `--vision-backbone {ijepa,vjepa,dinov3}` (or pass explicit model id with `--ijepa ...`)
-- `--hyperparams-file hyperparameters.json` (按模型/数据集集中管理超参数，CLI 参数优先)
+- `--hyperparams-file hyperparameters.json`
 - `--finetune-clip-text`
 - `--hub-model-id user/repo` (push after training)
 - `--no-wandb` (disable W&B)
@@ -66,14 +66,10 @@ uv run python text_cond_train.py --vision-backbone dinov3 --dataset cspref_mit_s
 
 ## Hyperparameters file
 
-默认读取仓库根目录的 `hyperparameters.json`，按以下优先级叠加：
-
 1. `defaults`
 2. `models.<vision-backbone>`
 3. `datasets.<dataset>`
 4. `model_dataset.<vision-backbone>.<dataset>`
-
-并且命令行显式传入的参数（例如 `--lr`, `--batch-size`）始终覆盖文件配置。
 
 ## Eval only
 
