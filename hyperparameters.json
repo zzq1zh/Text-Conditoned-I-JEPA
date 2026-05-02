@@ -25,7 +25,7 @@
       "scheduler_type": "none",
       "warmup_ratio": 0.0,
       "min_lr_ratio": 0.1,
-      "weight_decay": 5e-5,
+      "weight_decay": 1e-5,
       "fusion_type": "clip_similarity",
       "text_template": "a photo of a {c}."
     },
@@ -33,11 +33,11 @@
       "epochs": 20,
       "batch_size": 128,
       "num_workers": 4,
-      "lr": 5e-5,
+      "lr": 5e-4,
       "scheduler_type": "none",
       "warmup_ratio": 0.0,
       "min_lr_ratio": 0.1,
-      "weight_decay": 5e-5,
+      "weight_decay": 1e-5,
       "fusion_type": "clip_similarity",
       "text_template": "a photo of a {c}."
     },
