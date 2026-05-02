@@ -1,0 +1,21 @@
+{
+  "dataset": "cspref_cgqa",
+  "split": "test",
+  "seed": 42,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "dinov3-s42-20260501-201800",
+  "checkpoint": "checkpoints/dinov3_cspref_cgqa_clipstyle_s42_20260501-201800.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 5e-05,
+  "loss": 1.7293497173867538,
+  "top1": 0.15221655551196547,
+  "top5": 0.33052177324440957,
+  "seen_top1": 0.18563480020232676,
+  "seen_top5": 0.3836621143146181,
+  "unseen_top1": 0.03671328671328671,
+  "unseen_top5": 0.14685314685314685,
+  "auc_csp_style": 0.011139467616802054,
+  "batch_size": 128,
+  "timestamp_unix": 1777683117
+}
