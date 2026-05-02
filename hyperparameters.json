@@ -51,7 +51,7 @@
       "scheduler_type": "cosine",
       "warmup_ratio": 0.05,
       "min_lr_ratio": 0.1,
-      "weight_decay": 1e-5,
+      "weight_decay": 5e-5,
       "fusion_type": "clip_similarity",
       "text_template": "a photo of a {c}."
     },
@@ -63,7 +63,7 @@
       "scheduler_type": "cosine",
       "warmup_ratio": 0.05,
       "min_lr_ratio": 0.1,
-      "weight_decay": 1e-5,
+      "weight_decay": 5e-5,
       "fusion_type": "clip_similarity",
       "text_template": "a photo of a {c}."
     }
