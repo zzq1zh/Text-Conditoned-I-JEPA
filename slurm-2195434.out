@@ -1,0 +1,27 @@
+## SLURM PROLOG ###############################################################
+##    Job ID : 2195434
+##  Job Name : final_train
+##  Nodelist : gpu2708
+##      CPUs : 4
+##  Mem/Node : 16384 MB
+## Directory : /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA
+##   Job Started : Fri May  1 04:38:31 PM EDT 2026
+###############################################################################
+============================================
+Job ID:    2195434
+Node:      gpu2708.oscar.ccv.brown.edu
+Started:   Fri May  1 04:38:31 PM EDT 2026
+GPU: NVIDIA L40S
+============================================
+Training target: dinov3
+Command: python3 train_mit_states_clipstyle.py --vision-backbone dino-v3
+Running train command (seed=0):
+/usr/bin/python3 text_cond_train.py --vision-backbone dino-v3 --dataset cspref_mit_states --fusion-type clip_similarity --epochs 20 --batch-size 128 --lr 5e-05 --weight-decay 5e-05 --seed 0 --hyperparams-file hyperparameters.json --save checkpoints/dinov3_mit_states_clipstyle_s0_20260501-163831.pt
+Checkpoint will be saved to: checkpoints/dinov3_mit_states_clipstyle_s0_20260501-163831.pt
+Running eval command (val):
+/usr/bin/python3 text_cond_train.py --eval-only --vision-backbone dino-v3 --dataset cspref_mit_states --seed 0 --hyperparams-file hyperparameters.json --checkpoint checkpoints/dinov3_mit_states_clipstyle_s0_20260501-163831.pt --eval-split val --experiment-tag dinov3-s0-20260501-163831 --metrics-json /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/results/mit_states_clipstyle/dinov3_s0_20260501-163831_val.json
+Running eval command (test):
+/usr/bin/python3 text_cond_train.py --eval-only --vision-backbone dino-v3 --dataset cspref_mit_states --seed 0 --hyperparams-file hyperparameters.json --checkpoint checkpoints/dinov3_mit_states_clipstyle_s0_20260501-163831.pt --eval-split test --experiment-tag dinov3-s0-20260501-163831 --metrics-json /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/results/mit_states_clipstyle/dinov3_s0_20260501-163831_test.json
+============================================
+Finished:  Fri May  1 04:38:31 PM EDT 2026
+============================================
