@@ -119,6 +119,9 @@ HYPERPARAM_OVERRIDABLE_KEYS: frozenset[str] = frozenset(
         "batch_size",
         "num_workers",
         "lr",
+        "scheduler_type",
+        "warmup_ratio",
+        "min_lr_ratio",
         "weight_decay",
         "fusion_type",
         "text_template",
@@ -143,6 +146,9 @@ class TrainState:
     epochs: int
     batch_size: int
     lr: float
+    scheduler_type: str
+    warmup_ratio: float
+    min_lr_ratio: float
     weight_decay: float
     max_grad_norm: float
     cond_dim: int
@@ -862,6 +868,33 @@ def run_finetune(args: argparse.Namespace) -> None:
     if not params:
         raise RuntimeError("No trainable parameters; try --finetune-clip-text for CLIP text adapter + fusion")
     opt = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
+    total_steps = max(int(args.epochs) * max(len(train_loader), 1), 1)
+    warmup_steps = min(max(int(round(total_steps * float(args.warmup_ratio))), 0), total_steps)
+    if args.scheduler_type == "none":
+        sched: torch.optim.lr_scheduler.LRScheduler | None = None
+        print("Scheduler: none (constant LR)", flush=True)
+    elif args.scheduler_type == "cosine":
+        min_lr_ratio = float(args.min_lr_ratio)
+        if not (0.0 <= min_lr_ratio <= 1.0):
+            raise ValueError(f"--min-lr-ratio must be in [0,1], got {args.min_lr_ratio}")
+
+        def _lr_factor(step: int) -> float:
+            s = int(step)
+            if warmup_steps > 0 and s < warmup_steps:
+                return float(s + 1) / float(warmup_steps)
+            denom = max(total_steps - warmup_steps, 1)
+            t = min(max((s - warmup_steps) / denom, 0.0), 1.0)
+            cosine = 0.5 * (1.0 + math.cos(math.pi * t))
+            return min_lr_ratio + (1.0 - min_lr_ratio) * cosine
+
+        sched = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=_lr_factor)
+        print(
+            f"Scheduler: cosine | total_steps={total_steps} warmup_steps={warmup_steps} "
+            f"min_lr_ratio={min_lr_ratio}",
+            flush=True,
+        )
+    else:
+        raise ValueError(f"Unsupported scheduler_type={args.scheduler_type!r}; choose none or cosine")
     resolved_loss_mode = "bidirectional_infonce"
     use_bidirectional_infonce = True
     print(
@@ -878,6 +911,9 @@ def run_finetune(args: argparse.Namespace) -> None:
         epochs=args.epochs,
         batch_size=args.batch_size,
         lr=args.lr,
+        scheduler_type=str(args.scheduler_type),
+        warmup_ratio=float(args.warmup_ratio),
+        min_lr_ratio=float(args.min_lr_ratio),
         weight_decay=args.weight_decay,
         max_grad_norm=args.max_grad_norm,
         cond_dim=args.cond_dim,
@@ -969,6 +1005,8 @@ def run_finetune(args: argparse.Namespace) -> None:
                 grad_scaler.update()
             else:
                 opt.step()
+            if sched is not None:
+                sched.step()
 
             with torch.inference_mode():
                 full_logits = model.score_candidates(z, candidate_text_bank)
@@ -1334,6 +1372,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Lower on low VRAM or if OOM; with --finetune-clip-text try 8-12",
     )
     p.add_argument("--lr", type=float, default=1e-4)
+    p.add_argument(
+        "--scheduler-type",
+        choices=("none", "cosine"),
+        default="none",
+        help="LR scheduler type for optimizer updates.",
+    )
+    p.add_argument(
+        "--warmup-ratio",
+        type=float,
+        default=0.0,
+        help="Warmup fraction of total optimizer steps (used by cosine scheduler).",
+    )
+    p.add_argument(
+        "--min-lr-ratio",
+        type=float,
+        default=0.1,
+        help="Minimum LR / base LR ratio at cosine schedule end.",
+    )
     p.add_argument("--weight-decay", type=float, default=0.01)
     p.add_argument("--max-grad-norm", type=float, default=1.0)
     p.add_argument(
