@@ -22,12 +22,12 @@ from typing import Any
 
 def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     p = argparse.ArgumentParser(
-        description="Unified training launcher for {ijepa, v-jepa, dino-v3} on cspref_mit_states with clip_similarity fusion."
+        description="Unified training launcher for {ijepa, vjepa, dino-v3} on cspref_mit_states with clip_similarity fusion."
     )
     p.add_argument(
         "--vision-backbone",
         required=True,
-        choices=("ijepa", "v-jepa", "dino-v3"),
+        choices=("ijepa", "vjepa", "dino-v3"),
         help="Vision backbone alias.",
     )
     p.add_argument("--dataset", default="cspref_mit_states")

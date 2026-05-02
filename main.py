@@ -67,7 +67,7 @@ DEFAULT_VJEPA_ID = "facebook/vjepa2-vitl-fpc64-256"
 DEFAULT_DINOV3_ID = "facebook/dinov3-vitb16-pretrain-lvd1689m"
 VISION_BACKBONE_PRESETS: dict[str, str] = {
     "ijepa": DEFAULT_IJEPA_ID,
-    "v-jepa": DEFAULT_VJEPA_ID,
+    "vjepa": DEFAULT_VJEPA_ID,
     "dino-v3": DEFAULT_DINOV3_ID,
 }
 # CLIP text tower for text conditioning (align with open_clip / CLIP paper)
@@ -102,7 +102,10 @@ def freeze_backbone_(module: nn.Module) -> None:
 
 def normalize_backbone_name(backbone: str) -> str:
     """Normalize user-friendly backbone aliases to a canonical key."""
-    return backbone.strip().lower().replace("_", "-")
+    key = backbone.strip().lower().replace("_", "-")
+    if key == "v-jepa":
+        return "vjepa"
+    return key
 
 
 def resolve_vision_model_id(backbone: str = "ijepa", model_id: str = "") -> str:

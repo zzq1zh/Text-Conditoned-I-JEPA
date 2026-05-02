@@ -41,7 +41,7 @@ case "${TARGET}" in
     TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone ijepa --dataset "${DATASET}")
     ;;
   vjepa|v-jepa)
-    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone v-jepa --dataset "${DATASET}")
+    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone vjepa --dataset "${DATASET}")
     ;;
   ./*.sh|*.sh)
     TRAIN_CMD=(bash "${TARGET}")

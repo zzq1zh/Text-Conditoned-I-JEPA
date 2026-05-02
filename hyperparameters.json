@@ -21,7 +21,7 @@
       "batch_size": 128,
       "lr": 5e-5
     },
-    "v-jepa": {
+    "vjepa": {
       "batch_size": 128,
       "lr": 5e-5
     },
