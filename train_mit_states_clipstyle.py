@@ -46,6 +46,18 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
         default=os.environ.get("HYPERPARAMS_FILE", "hyperparameters.json"),
     )
     p.add_argument("--no-wandb", action="store_true")
+    p.add_argument(
+        "--wandb-log-images",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Enable/disable W&B image logging (default: on).",
+    )
+    p.add_argument(
+        "--wandb-max-images",
+        type=int,
+        default=8,
+        help="Number of images shown per W&B panel (default: 8).",
+    )
     p.add_argument("--finetune-clip-text", action="store_true")
     p.add_argument(
         "--plot-metric",
@@ -173,6 +185,8 @@ def main() -> None:
         ]
         if args.no_wandb:
             train_cmd.append("--no-wandb")
+        if args.wandb_log_images:
+            train_cmd.extend(["--wandb-log-images", "--wandb-max-images", str(args.wandb_max_images)])
         if args.finetune_clip_text:
             train_cmd.append("--finetune-clip-text")
         if extra_args:
@@ -195,6 +209,8 @@ def main() -> None:
         ]
         if args.no_wandb:
             base_eval_cmd.append("--no-wandb")
+        if args.wandb_log_images:
+            base_eval_cmd.extend(["--wandb-log-images", "--wandb-max-images", str(args.wandb_max_images)])
         val_json = results_dir / f"{model_tag}_s{seed}_{ts}_val.json"
         test_json = results_dir / f"{model_tag}_s{seed}_{ts}_test.json"
         eval_val_cmd = base_eval_cmd + [
