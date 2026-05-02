@@ -180,7 +180,6 @@ def _instance_image_rel(inst: dict[str, Any], ds_name: str) -> str:
 
 def build_hf_datasetdict(ds_paths: DatasetPaths) -> "Any":
     """Build train/val/test DatasetDict with compositional metadata."""
-    import torch
     from datasets import ClassLabel, Dataset, DatasetDict, Features, Image, Value
 
     root = ds_paths.root
@@ -203,6 +202,13 @@ def build_hf_datasetdict(ds_paths: DatasetPaths) -> "Any":
     md_file = root / f"metadata_{ds_paths.split_name}.t7"
     metadata: list[dict[str, Any]] | None
     if md_file.is_file():
+        try:
+            import torch
+        except ModuleNotFoundError as exc:
+            raise ModuleNotFoundError(
+                f"Found metadata file at {md_file}, but torch is not installed. "
+                "Install torch or remove metadata usage."
+            ) from exc
         metadata = torch.load(str(md_file), map_location="cpu")
     else:
         metadata = None

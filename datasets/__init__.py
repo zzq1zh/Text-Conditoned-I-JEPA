@@ -7,10 +7,15 @@ Bridge package:
 from __future__ import annotations
 
 import sysconfig
+import site
 from pathlib import Path
 
 _local_dir = Path(__file__).resolve().parent
-_hf_dir = Path(sysconfig.get_paths()["purelib"]) / "datasets"
+_hf_candidates = [
+    Path(sysconfig.get_paths()["purelib"]) / "datasets",
+    Path(site.getusersitepackages()) / "datasets",
+]
+_hf_dir = next((p for p in _hf_candidates if (p / "__init__.py").is_file()), _hf_candidates[0])
 
 # Search local modules first, then HF datasets package modules.
 __path__ = [str(_local_dir), str(_hf_dir)]
