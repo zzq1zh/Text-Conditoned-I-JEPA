@@ -9,6 +9,7 @@ venv/
 wandb/
 data/
 checkpoints/
+logs/
 
 slurm-*.out
 slurm-*.err

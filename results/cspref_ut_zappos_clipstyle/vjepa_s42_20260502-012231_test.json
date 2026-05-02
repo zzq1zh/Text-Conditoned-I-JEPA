@@ -1,0 +1,21 @@
+{
+  "dataset": "cspref_ut_zappos",
+  "split": "test",
+  "seed": 42,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "vjepa-s42-20260502-012231",
+  "checkpoint": "checkpoints/vjepa_cspref_ut_zappos_clipstyle_s42_20260502-012231.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 5e-05,
+  "loss": 3.681235717598019,
+  "top1": 0.2391901166781057,
+  "top5": 0.5943719972546329,
+  "seen_top1": 0.3519061583577713,
+  "seen_top5": 0.772238514173998,
+  "unseen_top1": 0.17821258593336858,
+  "unseen_top5": 0.49814912744579587,
+  "auc_csp_style": 0.12159361726276874,
+  "batch_size": 128,
+  "timestamp_unix": 1777704136
+}
