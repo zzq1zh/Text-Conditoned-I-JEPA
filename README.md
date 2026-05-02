@@ -27,6 +27,7 @@ Recommended `.env` keys:
 ## Main scripts
 
 - `text_cond_train.py`: train / eval entrypoint
+- `run_experiments.py`: config-driven multi-seed train+eval launcher (reads `hyperparameters.json`)
 - `main.py`: model definitions (`TextConditionedIJepa`, fusion heads)
 - `vision_data.py`: dataset registry and split logic
 - `build_csp_reference_hf_datasets.py`: convert CSP reference datasets to HF format and push
@@ -64,12 +65,18 @@ uv run python text_cond_train.py --vision-backbone vjepa --dataset cspref_mit_st
 uv run python text_cond_train.py --vision-backbone dinov3 --dataset cspref_mit_states --epochs 1
 ```
 
+## Config-driven experiments
+
+`run_experiments.py` now reads all runtime/training parameters from `hyperparameters.json` (no CLI args):
+
+```bash
+uv run python run_experiments.py
+```
+
 ## Hyperparameters file
 
 1. `defaults`
-2. `models.<vision-backbone>`
-3. `datasets.<dataset>`
-4. `model_dataset.<vision-backbone>.<dataset>`
+2. `datasets.<dataset>`
 
 ## Eval only
 
