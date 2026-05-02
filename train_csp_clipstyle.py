@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified launcher for mit_states + clip-style fusion across vision backbones.
+Unified launcher for CSP-reference datasets + clip-style fusion across vision backbones.
 
 Replaces:
 - train_dinov3_mit_states_clipstyle.sh
@@ -135,7 +135,9 @@ def main() -> None:
     repo_root = Path(__file__).resolve().parent
     os.chdir(repo_root)
     (repo_root / "checkpoints").mkdir(exist_ok=True)
-    (repo_root / "results" / "mit_states_clipstyle").mkdir(parents=True, exist_ok=True)
+    dataset_tag = args.dataset.replace("-", "_")
+    results_dir = repo_root / "results" / f"{dataset_tag}_clipstyle"
+    results_dir.mkdir(parents=True, exist_ok=True)
 
     hp_cfg = _load_hparams(repo_root / args.hyperparams_file)
     merged = _merged_hparams(hp_cfg, args.vision_backbone, args.dataset)
@@ -154,11 +156,10 @@ def main() -> None:
 
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     model_tag = args.vision_backbone.replace("-", "")
-    results_dir = repo_root / "results" / "mit_states_clipstyle"
     eval_records: list[dict[str, Any]] = []
 
     for seed in seeds:
-        ckpt = f"checkpoints/{model_tag}_mit_states_clipstyle_s{seed}_{ts}.pt"
+        ckpt = f"checkpoints/{model_tag}_{dataset_tag}_clipstyle_s{seed}_{ts}.pt"
         train_cmd = [
             sys.executable,
             "text_cond_train.py",
@@ -257,7 +258,7 @@ def main() -> None:
 
     if (not args.dry_run) and eval_records:
         plot_path = (
-            results_dir / f"{model_tag}_{args.dataset}_{ts}_seed_curve_{args.plot_metric}.png"
+            results_dir / f"{model_tag}_{dataset_tag}_{ts}_seed_curve_{args.plot_metric}.png"
         )
         _plot_seed_performance(eval_records, metric_key=args.plot_metric, out_path=plot_path)
 
