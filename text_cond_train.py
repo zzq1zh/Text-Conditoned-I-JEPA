@@ -1004,7 +1004,7 @@ def run_finetune(args: argparse.Namespace) -> None:
         pbar = tqdm(
             train_loader, desc=f"train ep {epoch+1}/{args.epochs}", file=sys.stdout
         )
-        for batch in pbar:
+        for batch_idx, batch in enumerate(pbar):
             pv = batch["pixel_values"].to(device, non_blocking=True)
             y = batch["labels"].to(device, non_blocking=True)
             opt.zero_grad(set_to_none=True)
@@ -1055,7 +1055,8 @@ def run_finetune(args: argparse.Namespace) -> None:
                 if (
                     args.wandb_log_images
                     and args.wandb_image_log_interval > 0
-                    and global_step % args.wandb_image_log_interval == 0
+                    and ((epoch + 1) % args.wandb_image_log_interval == 0)
+                    and batch_idx == 0
                 ):
                     log_d["train/images"] = _make_wandb_images(
                         pv,
@@ -1483,7 +1484,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--wandb-image-log-interval",
         type=int,
         default=1,
-        help="Log images every N global steps when --wandb-log-images is enabled.",
+        help="Log images every N epochs when --wandb-log-images is enabled.",
     )
     p.add_argument(
         "--wandb-max-images",

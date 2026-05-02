@@ -5,8 +5,8 @@
     "batch_size": 128,
     "num_workers": 4,
     "lr": 5e-5,
-    "scheduler_type": "cosine",
-    "warmup_ratio": 0.05,
+    "scheduler_type": "none",
+    "warmup_ratio": 0.0,
     "min_lr_ratio": 0.1,
     "weight_decay": 5e-5,
     "fusion_type": "clip_similarity",
@@ -14,21 +14,7 @@
     "cond_dim": 256,
     "fusion_hidden": 512,
     "text_bank_chunk_size": 512,
-    "max_grad_norm": 1.0
-  },
-  "models": {
-    "ijepa": {
-      "batch_size": 128,
-      "lr": 5e-5
-    },
-    "vjepa": {
-      "batch_size": 128,
-      "lr": 5e-5
-    },
-    "dinov3": {
-      "batch_size": 128,
-      "lr": 5e-5
-    }
+    "max_grad_norm": 0.0
   },
   "datasets": {
     "cspref_mit_states": {
@@ -36,8 +22,8 @@
       "batch_size": 128,
       "num_workers": 4,
       "lr": 5e-5,
-      "scheduler_type": "cosine",
-      "warmup_ratio": 0.05,
+      "scheduler_type": "none",
+      "warmup_ratio": 0.0,
       "min_lr_ratio": 0.1,
       "weight_decay": 5e-5,
       "fusion_type": "clip_similarity",
@@ -48,8 +34,8 @@
       "batch_size": 128,
       "num_workers": 4,
       "lr": 5e-5,
-      "scheduler_type": "cosine",
-      "warmup_ratio": 0.05,
+      "scheduler_type": "none",
+      "warmup_ratio": 0.0,
       "min_lr_ratio": 0.1,
       "weight_decay": 5e-5,
       "fusion_type": "clip_similarity",
@@ -60,8 +46,8 @@
       "batch_size": 128,
       "num_workers": 4,
       "lr": 5e-5,
-      "scheduler_type": "cosine",
-      "warmup_ratio": 0.05,
+      "scheduler_type": "none",
+      "warmup_ratio": 0.0,
       "min_lr_ratio": 0.1,
       "weight_decay": 5e-5,
       "fusion_type": "clip_similarity",
