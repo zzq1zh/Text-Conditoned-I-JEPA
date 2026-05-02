@@ -48,9 +48,32 @@ uv run python text_cond_train.py \
 Useful flags:
 
 - `--fusion-type {cross_attention,linear,clip_similarity}`
+- `--vision-backbone {ijepa,v-jepa,dino-v3}` (or pass explicit model id with `--ijepa ...`)
+- `--hyperparams-file hyperparameters.json` (按模型/数据集集中管理超参数，CLI 参数优先)
 - `--finetune-clip-text`
 - `--hub-model-id user/repo` (push after training)
 - `--no-wandb` (disable W&B)
+
+Backbone examples:
+
+```bash
+# V-JEPA 2
+uv run python text_cond_train.py --vision-backbone v-jepa --dataset cspref_mit_states --epochs 1
+
+# DINOv3 ViT-B/16
+uv run python text_cond_train.py --vision-backbone dino-v3 --dataset cspref_mit_states --epochs 1
+```
+
+## Hyperparameters file
+
+默认读取仓库根目录的 `hyperparameters.json`，按以下优先级叠加：
+
+1. `defaults`
+2. `models.<vision-backbone>`
+3. `datasets.<dataset>`
+4. `model_dataset.<vision-backbone>.<dataset>`
+
+并且命令行显式传入的参数（例如 `--lr`, `--batch-size`）始终覆盖文件配置。
 
 ## Eval only
 

@@ -25,7 +25,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-from transformers import AutoImageProcessor, AutoTokenizer
+from transformers import AutoTokenizer
 
 # Project imports (run from repo root, e.g. `uv run python text_cond_train.py ...`)
 from main import (  # noqa: E402
@@ -33,7 +33,11 @@ from main import (  # noqa: E402
     DEFAULT_IJEPA_ID,
     DEFAULT_PROMPT_TEMPLATE,
     TextConditionedIJepa,
+    VISION_BACKBONE_PRESETS,
+    _extract_model_pixel_values,
     _resolve_device,
+    load_vision_processor,
+    resolve_vision_model_id,
 )
 from vision_data import (  # noqa: E402
     list_vision_dataset_keys,
@@ -108,36 +112,23 @@ def _default_eval_wandb_run_name(args: argparse.Namespace, *, fusion_type: str) 
 DEFAULT_TRAIN_BATCH = 16
 DEFAULT_TRAIN_NUM_WORKERS = 6
 DEFAULT_LOG_INTERVAL = 32
-CSPREF_RECOMMENDED: dict[str, dict[str, Any]] = {
-    # Close to CSP-style hyperparameters, but adapted to this training script.
-    "cspref_mit_states": {
-        "epochs": 20,
-        "batch_size": 128,
-        "num_workers": 8,
-        "lr": 5e-5,
-        "weight_decay": 1e-5,
-        "fusion_type": "linear",
-        "text_template": "a photo of a {c}.",
-    },
-    "cspref_ut_zappos": {
-        "epochs": 20,
-        "batch_size": 128,
-        "num_workers": 8,
-        "lr": 5e-5,
-        "weight_decay": 1e-5,
-        "fusion_type": "linear",
-        "text_template": "a photo of a {c}.",
-    },
-    "cspref_cgqa": {
-        "epochs": 20,
-        "batch_size": 128,
-        "num_workers": 8,
-        "lr": 5e-5,
-        "weight_decay": 1e-5,
-        "fusion_type": "linear",
-        "text_template": "a photo of a {c}.",
-    },
-}
+DEFAULT_HYPERPARAMS_FILE = "hyperparameters.json"
+HYPERPARAM_OVERRIDABLE_KEYS: frozenset[str] = frozenset(
+    {
+        "epochs",
+        "batch_size",
+        "num_workers",
+        "lr",
+        "weight_decay",
+        "fusion_type",
+        "text_template",
+        "cond_dim",
+        "fusion_hidden",
+        "text_bank_chunk_size",
+        "max_grad_norm",
+        "amp",
+    }
+)
 
 
 @dataclass
@@ -200,16 +191,17 @@ def _arg_was_explicit(argv: list[str], key: str) -> bool:
     return False
 
 
-def _apply_cspref_recommended_config(args: argparse.Namespace, argv: list[str]) -> None:
-    """
-    Apply dataset-specific recommended settings for cspref_* datasets.
-    Explicit CLI flags always override recommendations.
-    """
-    rec = CSPREF_RECOMMENDED.get(args.dataset)
-    if rec is None:
-        return
+def _apply_hparam_overrides(
+    args: argparse.Namespace,
+    argv: list[str],
+    overrides: dict[str, Any],
+    *,
+    source: str,
+) -> None:
     applied: list[str] = []
-    for k, v in rec.items():
+    for k, v in overrides.items():
+        if k not in HYPERPARAM_OVERRIDABLE_KEYS:
+            continue
         if _arg_was_explicit(argv, k):
             continue
         old_v = getattr(args, k)
@@ -217,10 +209,53 @@ def _apply_cspref_recommended_config(args: argparse.Namespace, argv: list[str]) 
             setattr(args, k, v)
             applied.append(f"{k}={v!r}")
     if applied:
-        print(
-            f"Applied recommended config for {args.dataset}: " + ", ".join(applied),
-            flush=True,
+        print(f"Applied hyperparameters from {source}: " + ", ".join(applied), flush=True)
+
+
+def _load_hyperparams_config(path: str) -> dict[str, Any]:
+    p = Path(path)
+    if not p.exists():
+        return {}
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in hyperparameters file {p}: {e}") from e
+    if not isinstance(raw, dict):
+        raise ValueError(f"Hyperparameters file must be a JSON object: {p}")
+    return raw
+
+
+def _apply_hyperparams_from_file(args: argparse.Namespace, argv: list[str]) -> None:
+    cfg = _load_hyperparams_config(args.hyperparams_file)
+    if not cfg:
+        return
+    model_key = str(args.vision_backbone)
+    dataset_key = str(args.dataset)
+
+    defaults = cfg.get("defaults", {})
+    models = cfg.get("models", {})
+    datasets = cfg.get("datasets", {})
+    model_dataset = cfg.get("model_dataset", {})
+
+    if isinstance(defaults, dict):
+        _apply_hparam_overrides(args, argv, defaults, source="defaults")
+    if isinstance(models, dict) and isinstance(models.get(model_key), dict):
+        _apply_hparam_overrides(
+            args, argv, models[model_key], source=f"models.{model_key}"
         )
+    if isinstance(datasets, dict) and isinstance(datasets.get(dataset_key), dict):
+        _apply_hparam_overrides(
+            args, argv, datasets[dataset_key], source=f"datasets.{dataset_key}"
+        )
+    if isinstance(model_dataset, dict):
+        by_model = model_dataset.get(model_key, {})
+        if isinstance(by_model, dict) and isinstance(by_model.get(dataset_key), dict):
+            _apply_hparam_overrides(
+                args,
+                argv,
+                by_model[dataset_key],
+                source=f"model_dataset.{model_key}.{dataset_key}",
+            )
 
 
 def _resolve_train_device(args: argparse.Namespace) -> torch.device:
@@ -292,8 +327,9 @@ def make_collate_fn(
         label_list = [int(d["label"]) for d in batch]
         images = [d["image"] for d in batch]
         vis = processor(images=images, return_tensors="pt")
+        pixel_values = _extract_model_pixel_values(vis)
         out: dict[str, Any] = {
-            "pixel_values": vis["pixel_values"],
+            "pixel_values": pixel_values,
             "labels": torch.tensor(label_list, dtype=torch.long),
         }
         if "pair_seen_in_train" in batch[0]:
@@ -356,38 +392,106 @@ def _make_wandb_images(
     class_names: list[str] | None = None,
 ) -> list[Any]:
     """
-    Build a small list of ``wandb.Image`` from a training batch.
-    Uses per-image min-max normalization for visualization only.
+    Build one W&B image panel that shows up to 8 samples at once (2x4 grid),
+    each with predicted/true labels.
     """
     import wandb
+    from PIL import Image, ImageDraw
+
+    def _to_wandb_image_tensor(img: torch.Tensor) -> torch.Tensor:
+        """
+        Normalize one sample to CHW for ``wandb.Image``.
+        - CHW: keep as-is
+        - HWC: permute to CHW
+        - TCHW/THWC: pick center frame, then convert to CHW
+        """
+        if img.ndim == 4:
+            # Video-like sample: choose the temporal center frame.
+            img = img[img.shape[0] // 2]
+        if img.ndim == 3 and img.shape[0] not in (1, 3) and img.shape[-1] in (1, 3):
+            img = img.permute(2, 0, 1)
+        if img.ndim == 2:
+            img = img.unsqueeze(0)
+        if img.ndim != 3:
+            raise ValueError(f"Unsupported image tensor shape for wandb.Image: {tuple(img.shape)}")
+        return img
+
+    def _to_uint8_hwc(img_chw: torch.Tensor) -> Any:
+        # Visualization-only normalization.
+        x = img_chw.float()
+        x = x - x.min()
+        x = x / x.max().clamp(min=1e-6)
+        if x.shape[0] == 1:
+            x = x.repeat(3, 1, 1)
+        x = (x * 255.0).clamp(0, 255).byte().permute(1, 2, 0).numpy()
+        return x
 
     pv = pixel_values.detach().cpu().float()
     y = labels.detach().cpu().long()
     p = preds.detach().cpu().long()
     n = min(int(max_images), int(pv.size(0)))
-    out: list[Any] = []
+
+    if n <= 0:
+        return []
+
     def _label_text(idx: int) -> str:
         if class_names is not None and 0 <= idx < len(class_names):
             return class_names[idx]
         return str(idx)
 
+    cols = 4
+    rows = max((n + cols - 1) // cols, 1)
+    tile_w = 196
+    tile_h = 196
+    text_h = 40
+    canvas = Image.new("RGB", (cols * tile_w, rows * (tile_h + text_h)), color=(245, 245, 245))
+    draw = ImageDraw.Draw(canvas)
+
     for i in range(n):
-        img = pv[i]
-        img = img - img.min()
-        den = img.max().clamp(min=1e-6)
-        img = img / den
+        img = _to_wandb_image_tensor(pv[i])
+        arr = _to_uint8_hwc(img)
+        tile = Image.fromarray(arr).resize((tile_w, tile_h))
         yi = int(y[i])
         pi = int(p[i])
-        out.append(
-            wandb.Image(
-                img,
-                caption=(
-                    f"predict label: {_label_text(pi)} ({pi}) ; "
-                    f"true label: {_label_text(yi)} ({yi})"
-                ),
-            )
+        r = i // cols
+        c = i % cols
+        x0 = c * tile_w
+        y0 = r * (tile_h + text_h)
+        canvas.paste(tile, (x0, y0))
+        draw.text(
+            (x0 + 4, y0 + tile_h + 2),
+            f"P: {_label_text(pi)} ({pi})",
+            fill=(20, 20, 20),
         )
-    return out
+        draw.text(
+            (x0 + 4, y0 + tile_h + 20),
+            f"T: {_label_text(yi)} ({yi})",
+            fill=(20, 20, 20),
+        )
+    return [wandb.Image(canvas, caption=f"Preview panel ({n} images)") ]
+
+
+@torch.inference_mode()
+def _build_eval_preview_images(
+    model: TextConditionedIJepa,
+    loader: DataLoader,
+    device: torch.device,
+    candidate_text_bank: torch.Tensor,
+    *,
+    max_images: int,
+    class_names: list[str],
+) -> list[Any]:
+    """Collect one evaluation preview batch as ``wandb.Image`` list."""
+    for batch in loader:
+        pv = batch["pixel_values"].to(device, non_blocking=True)
+        y = batch["labels"].to(device, non_blocking=True)
+        z = model.encode_image(pv)
+        logits = model.score_candidates(z, candidate_text_bank)
+        pred = logits.argmax(dim=-1)
+        return _make_wandb_images(
+            pv, y, pred, max_images=max_images, class_names=class_names
+        )
+    return []
 
 
 @torch.inference_mode()
@@ -692,6 +796,7 @@ def load_text_cond_trainable_from_hub(
 
 def run_finetune(args: argparse.Namespace) -> None:
     set_seed(args.seed)
+    args.ijepa = resolve_vision_model_id(args.vision_backbone, args.ijepa)
     device = _resolve_train_device(args)
     if device.type == "cuda":
         print(f"Training on GPU: {torch.cuda.get_device_name(device.index or 0)}", flush=True)
@@ -718,7 +823,7 @@ def run_finetune(args: argparse.Namespace) -> None:
     if len(train_ds) == 0 or len(val_ds) == 0:
         raise RuntimeError("Train or val split is empty. Check --max-train/val-samples and val-fraction")
 
-    im_proc = AutoImageProcessor.from_pretrained(args.ijepa)
+    im_proc = load_vision_processor(args.ijepa)
     model = TextConditionedIJepa(
         num_labels=n_classes,
         ijepa_id=args.ijepa,
@@ -794,6 +899,8 @@ def run_finetune(args: argparse.Namespace) -> None:
 
     use_wandb = not args.no_wandb
     if use_wandb:
+        # Enforce metric/image-only logging; do not store model weights in W&B.
+        os.environ["WANDB_LOG_MODEL"] = "false"
         import wandb
 
         # project_env already loaded .env; W&B also reads WANDB_API_KEY from the environment
@@ -973,6 +1080,7 @@ def run_finetune(args: argparse.Namespace) -> None:
 def run_eval_only(args: argparse.Namespace) -> None:
     """Top-1 / Top-5 on val or the merged test split; optional checkpoint or Hub."""
     set_seed(args.seed)
+    args.ijepa = resolve_vision_model_id(args.vision_backbone, args.ijepa)
     device = _resolve_train_device(args)
     if device.type == "cuda":
         print(f"Eval on GPU: {torch.cuda.get_device_name(device.index or 0)}", flush=True)
@@ -1046,7 +1154,7 @@ def run_eval_only(args: argparse.Namespace) -> None:
                 flush=True,
             )
 
-    im_proc = AutoImageProcessor.from_pretrained(ijepa_id)
+    im_proc = load_vision_processor(ijepa_id)
     tok = AutoTokenizer.from_pretrained(clip_id)
     collate = make_collate_fn(im_proc)
     candidate_text_bank = _build_candidate_text_bank(
@@ -1120,6 +1228,8 @@ def run_eval_only(args: argparse.Namespace) -> None:
         p.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
         print(f"Wrote eval metrics JSON to {p}", flush=True)
     if not args.no_wandb:
+        # Enforce metric/image-only logging; do not store model weights in W&B.
+        os.environ["WANDB_LOG_MODEL"] = "false"
         import wandb
 
         w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
@@ -1146,19 +1256,26 @@ def run_eval_only(args: argparse.Namespace) -> None:
                 "checkpoint": ckpt,
             },
         )
-        wandb.log(
-            {
-                f"{args.eval_split}/loss": float(loss),
-                f"{args.eval_split}/acc@1": float(top1),
-                f"{args.eval_split}/acc@5": float(top5),
-                f"{args.eval_split}/seen_acc@1": float(seen_top1),
-                f"{args.eval_split}/seen_acc@5": float(seen_top5),
-                f"{args.eval_split}/unseen_acc@1": float(unseen_top1),
-                f"{args.eval_split}/unseen_acc@5": float(unseen_top5),
-                f"{args.eval_split}/auc_csp_style": float(auc_csp),
-            },
-            step=0,
-        )
+        eval_log: dict[str, Any] = {
+            f"{args.eval_split}/loss": float(loss),
+            f"{args.eval_split}/acc@1": float(top1),
+            f"{args.eval_split}/acc@5": float(top5),
+            f"{args.eval_split}/seen_acc@1": float(seen_top1),
+            f"{args.eval_split}/seen_acc@5": float(seen_top5),
+            f"{args.eval_split}/unseen_acc@1": float(unseen_top1),
+            f"{args.eval_split}/unseen_acc@5": float(unseen_top5),
+            f"{args.eval_split}/auc_csp_style": float(auc_csp),
+        }
+        if args.wandb_log_images:
+            eval_log[f"{args.eval_split}/images"] = _build_eval_preview_images(
+                model,
+                loader,
+                device,
+                candidate_text_bank,
+                max_images=int(args.wandb_max_images),
+                class_names=class_names,
+            )
+        wandb.log(eval_log, step=0)
         wandb.finish()
 
 
@@ -1168,12 +1285,34 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="Example:  uv run python text_cond_train.py --epochs 2  # add --no-wandb to skip W&B",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    p.add_argument("--ijepa", default=DEFAULT_IJEPA_ID, help="HuggingFace I-JEPA id")
+    p.add_argument(
+        "--ijepa",
+        default="",
+        help="Explicit HuggingFace vision backbone id override (legacy flag name).",
+    )
+    p.add_argument(
+        "--vision-backbone",
+        choices=tuple(sorted(VISION_BACKBONE_PRESETS.keys())),
+        default="ijepa",
+        help=(
+            "Backbone preset alias used when --ijepa is empty. "
+            f"Defaults to I-JEPA ({DEFAULT_IJEPA_ID})."
+        ),
+    )
     p.add_argument("--clip", default=DEFAULT_CLIP_TEXT_ID, help="HuggingFace CLIP id (text + tokenizer)")
     p.add_argument(
         "--dataset",
         default="cifar100",
         choices=list_vision_dataset_keys(),
+    )
+    p.add_argument(
+        "--hyperparams-file",
+        default=DEFAULT_HYPERPARAMS_FILE,
+        help=(
+            "JSON file for default hyperparameters. "
+            "Applied by priority: defaults -> models -> datasets -> model_dataset; "
+            "explicit CLI flags still take precedence."
+        ),
     )
     p.add_argument("--val-fraction", type=float, default=0.1)
     p.add_argument("--split-seed", type=int, default=0)
@@ -1257,7 +1396,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--wandb-log-images",
         action="store_true",
-        help="Log training batch images to W&B (caption includes y/pred).",
+        help="Log train/eval preview images to W&B (caption includes y/pred).",
     )
     p.add_argument(
         "--wandb-image-log-interval",
@@ -1335,7 +1474,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     argv = sys.argv[1:]
     args = build_parser().parse_args(argv)
-    _apply_cspref_recommended_config(args, argv)
+    _apply_hyperparams_from_file(args, argv)
     if args.eval_only:
         run_eval_only(args)
     else:

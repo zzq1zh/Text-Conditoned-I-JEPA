@@ -24,6 +24,7 @@ from transformers import (
     AutoImageProcessor,
     AutoModel,
     AutoTokenizer,
+    AutoVideoProcessor,
     CLIPModel,
     CLIPTextModelWithProjection,
     PreTrainedModel,
@@ -61,6 +62,14 @@ def load_clip_text_encoder_for_conditioning(clip_model_id: str) -> CLIPTextModel
 
 # Default checkpoint: ViT-H/14 pretrained on IN1K (HuggingFace I-JEPA)
 DEFAULT_IJEPA_ID = "facebook/ijepa_vith14_1k"
+# V-JEPA 2 and DINOv3 presets for quick backbone switching.
+DEFAULT_VJEPA_ID = "facebook/vjepa2-vitl-fpc64-256"
+DEFAULT_DINOV3_ID = "facebook/dinov3-vitb16-pretrain-lvd1689m"
+VISION_BACKBONE_PRESETS: dict[str, str] = {
+    "ijepa": DEFAULT_IJEPA_ID,
+    "v-jepa": DEFAULT_VJEPA_ID,
+    "dino-v3": DEFAULT_DINOV3_ID,
+}
 # CLIP text tower for text conditioning (align with open_clip / CLIP paper)
 DEFAULT_CLIP_TEXT_ID = "openai/clip-vit-base-patch32"
 
@@ -91,6 +100,81 @@ def freeze_backbone_(module: nn.Module) -> None:
         p.requires_grad = False
 
 
+def normalize_backbone_name(backbone: str) -> str:
+    """Normalize user-friendly backbone aliases to a canonical key."""
+    return backbone.strip().lower().replace("_", "-")
+
+
+def resolve_vision_model_id(backbone: str = "ijepa", model_id: str = "") -> str:
+    """
+    Resolve the vision backbone id from an alias or explicit model id override.
+    Explicit ``model_id`` wins to preserve backward compatibility.
+    """
+    mid = (model_id or "").strip()
+    if mid:
+        return mid
+    key = normalize_backbone_name(backbone)
+    if key not in VISION_BACKBONE_PRESETS:
+        opts = ", ".join(sorted(VISION_BACKBONE_PRESETS.keys()))
+        raise ValueError(f"Unsupported vision backbone {backbone!r}; expected one of: {opts}")
+    return VISION_BACKBONE_PRESETS[key]
+
+
+def _extract_model_pixel_values(processed: dict[str, torch.Tensor]) -> torch.Tensor:
+    """
+    Extract pixel values from an image/video processor output and normalize to one key.
+    Supports image models (``pixel_values``) and video models (``pixel_values_videos``).
+    """
+    if "pixel_values" in processed:
+        return processed["pixel_values"]
+    if "pixel_values_videos" in processed:
+        return processed["pixel_values_videos"]
+    keys = ", ".join(sorted(processed.keys()))
+    raise KeyError(
+        "Processor output does not contain 'pixel_values' or 'pixel_values_videos'. "
+        f"Found keys: {keys}"
+    )
+
+
+def load_vision_processor(model_id: str) -> Any:
+    """
+    Load image/video processor for a backbone id.
+    Prefers ``AutoImageProcessor`` and falls back to ``AutoVideoProcessor``.
+    """
+    try:
+        return AutoImageProcessor.from_pretrained(model_id)
+    except (ValueError, OSError):
+        return AutoVideoProcessor.from_pretrained(model_id)
+
+
+def _forward_backbone(model: PreTrainedModel, pixel_values: torch.Tensor) -> Any:
+    """Forward through image/video backbones using the expected input argument name."""
+    if pixel_values.ndim == 5:
+        return model(pixel_values_videos=pixel_values)
+    return model(pixel_values=pixel_values)
+
+
+def _extract_token_sequence(outputs: Any) -> torch.Tensor:
+    """
+    Normalize heterogeneous backbone outputs to token sequence shape ``(B, N, D)``.
+    Falls back to pooler output if ``last_hidden_state`` is unavailable.
+    """
+    seq = getattr(outputs, "last_hidden_state", None)
+    if seq is None:
+        pooled = getattr(outputs, "pooler_output", None)
+        if pooled is None:
+            raise RuntimeError(
+                "Backbone output is missing both last_hidden_state and pooler_output."
+            )
+        seq = pooled.unsqueeze(1) if pooled.ndim == 2 else pooled
+    if seq.ndim == 2:
+        seq = seq.unsqueeze(1)
+    if seq.ndim > 3:
+        # e.g. video tokens with temporal dimension -> flatten non-batch/non-hidden dims.
+        seq = seq.reshape(seq.shape[0], -1, seq.shape[-1])
+    return seq
+
+
 def load_ijepa_pipeline(
     model_id: str = DEFAULT_IJEPA_ID,
     device: str | torch.device | None = None,
@@ -108,7 +192,7 @@ def load_ijepa_pipeline(
     model = AutoModel.from_pretrained(model_id, dtype=dtype)
     model.to(dev)
     model.eval()
-    processor = AutoImageProcessor.from_pretrained(model_id)
+    processor = load_vision_processor(model_id)
     return IJepaPipeline(model=model, processor=processor, device=dev, model_id=model_id)
 
 
@@ -123,8 +207,8 @@ def forward_ijepa_backbone(
     with torch.inference_mode(), torch.autocast(
         device_type=pipe.device.type, dtype=torch.float16, enabled=amp and pipe.device.type == "cuda"
     ):
-        out = pipe.model(pixel_values=pixel_values)
-    return out.last_hidden_state
+        out = _forward_backbone(pipe.model, pixel_values)
+    return _extract_token_sequence(out)
 
 
 class TextConditioningModule(nn.Module):
@@ -273,8 +357,9 @@ class TextConditionedIJepa(nn.Module):
 
     def encode_image(self, pixel_values: torch.Tensor) -> torch.Tensor:
         with torch.inference_mode():
-            enc = self.backbone(pixel_values=pixel_values)
-            z = enc.last_hidden_state.float().mean(dim=1).detach()
+            enc = _forward_backbone(self.backbone, pixel_values)
+            seq = _extract_token_sequence(enc)
+            z = seq.float().mean(dim=1).detach()
         return z
 
     def encode_text(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
@@ -347,12 +432,12 @@ def _run_smoke_test(model_id: str, cpu: bool) -> None:
     print(f"Loaded {pipe.model_id} on {pipe.device}")
 
     im = _random_pil_image(224)
-    inputs = pipe.processor(images=im, return_tensors="pt")
-    inputs = {k: v.to(pipe.device) for k, v in inputs.items()}
+    processed = pipe.processor(images=im, return_tensors="pt")
+    pixel_values = _extract_model_pixel_values(processed).to(pipe.device)
 
     with torch.inference_mode():
-        out = pipe.model(**inputs)
-    seq = out.last_hidden_state
+        out = _forward_backbone(pipe.model, pixel_values)
+    seq = _extract_token_sequence(out)
     print(f"last_hidden_state shape: {tuple(seq.shape)}")
 
 
@@ -428,7 +513,7 @@ def _run_text_fusion_smoke(
         input_ids = enc_text["input_ids"].to(device)
         attention_mask = enc_text["attention_mask"].to(device)
         vis = pipe.processor(images=images, return_tensors="pt")
-        pixel_values = vis["pixel_values"].to(device)
+        pixel_values = _extract_model_pixel_values(vis).to(device)
         labels_t = torch.tensor(labels_list, dtype=torch.long, device=device)
         with torch.set_grad_enabled(tag == "train"):
             out = model(
@@ -446,7 +531,13 @@ def _run_text_fusion_smoke(
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="I-JEPA load pipeline smoke test")
-    p.add_argument("--model", default=DEFAULT_IJEPA_ID, help="HuggingFace model id (I-JEPA)")
+    p.add_argument("--model", default="", help="Explicit HuggingFace vision backbone id override")
+    p.add_argument(
+        "--vision-backbone",
+        choices=tuple(sorted(VISION_BACKBONE_PRESETS.keys())),
+        default="ijepa",
+        help="Backbone preset alias when --model is empty.",
+    )
     p.add_argument("--cpu", action="store_true", help="Force CPU (no CUDA)")
     p.add_argument(
         "--text-fusion",
@@ -499,9 +590,10 @@ def _parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = _parse_args()
+    model_id = resolve_vision_model_id(args.vision_backbone, args.model)
     if args.text_fusion:
         _run_text_fusion_smoke(
-            ijepa_id=args.model,
+            ijepa_id=model_id,
             cpu=args.cpu,
             dataset_key=args.dataset,
             val_fraction=args.val_fraction,
@@ -512,4 +604,4 @@ if __name__ == "__main__":
             text_template=args.text_template,
         )
     else:
-        _run_smoke_test(model_id=args.model, cpu=args.cpu)
+        _run_smoke_test(model_id=model_id, cpu=args.cpu)

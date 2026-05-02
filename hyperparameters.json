@@ -1,0 +1,58 @@
+{
+  "defaults": {
+    "epochs": 20,
+    "batch_size": 128,
+    "num_workers": 8,
+    "lr": 5e-5,
+    "weight_decay": 5e-5,
+    "fusion_type": "clip_similarity",
+    "text_template": "a photo of a {c}.",
+    "cond_dim": 256,
+    "fusion_hidden": 512,
+    "text_bank_chunk_size": 512,
+    "max_grad_norm": 1.0
+  },
+  "models": {
+    "ijepa": {
+      "batch_size": 128,
+      "lr": 5e-5
+    },
+    "v-jepa": {
+      "batch_size": 128,
+      "lr": 5e-5
+    },
+    "dino-v3": {
+      "batch_size": 128,
+      "lr": 5e-5
+    }
+  },
+  "datasets": {
+    "cspref_mit_states": {
+      "epochs": 20,
+      "batch_size": 128,
+      "num_workers": 8,
+      "lr": 5e-5,
+      "weight_decay": 5e-5,
+      "fusion_type": "clip_similarity",
+      "text_template": "a photo of a {c}."
+    },
+    "cspref_ut_zappos": {
+      "epochs": 20,
+      "batch_size": 128,
+      "num_workers": 8,
+      "lr": 5e-5,
+      "weight_decay": 1e-5,
+      "fusion_type": "linear",
+      "text_template": "a photo of a {c}."
+    },
+    "cspref_cgqa": {
+      "epochs": 20,
+      "batch_size": 128,
+      "num_workers": 8,
+      "lr": 5e-5,
+      "weight_decay": 1e-5,
+      "fusion_type": "linear",
+      "text_template": "a photo of a {c}."
+    }
+  }
+}
