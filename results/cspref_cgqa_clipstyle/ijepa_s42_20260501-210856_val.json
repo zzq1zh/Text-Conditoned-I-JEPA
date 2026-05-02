@@ -1,0 +1,21 @@
+{
+  "dataset": "cspref_cgqa",
+  "split": "val",
+  "seed": 42,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "ijepa-s42-20260501-210856",
+  "checkpoint": "checkpoints/ijepa_cspref_cgqa_clipstyle_s42_20260501-210856.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 5e-05,
+  "loss": 2.199501547970615,
+  "top1": 0.0787087912087912,
+  "top5": 0.21593406593406594,
+  "seen_top1": 0.1129469122426869,
+  "seen_top5": 0.2803358613217768,
+  "unseen_top1": 0.043478260869565216,
+  "unseen_top5": 0.1496655518394649,
+  "auc_csp_style": 0.008034410531782443,
+  "batch_size": 128,
+  "timestamp_unix": 1777687532
+}
