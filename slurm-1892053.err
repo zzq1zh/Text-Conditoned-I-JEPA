@@ -1,2332 +1,0 @@
-Using CPython 3.12.13
-Creating virtual environment at: .venv
-Downloading pydantic-core (2.0MiB)
-Downloading pandas (10.4MiB)
-Downloading pyarrow (46.6MiB)
-Downloading aiohttp (1.7MiB)
-Downloading wandb (25.9MiB)
-Downloading dearpygui (2.6MiB)
- Downloaded pydantic-core
- Downloaded dearpygui
- Downloaded aiohttp
- Downloaded pyarrow
- Downloaded wandb
- Downloaded pandas
-warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
-         If the cache and target directories are on different filesystems, hardlinking may not be supported.
-         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
-Installed 108 packages in 5m 34s
-Generating train split:   0%|          | 0/30338 [00:00<?, ? examples/s]Generating train split:  25%|██▌       | 7619/30338 [00:00<00:01, 12587.91 examples/s]Generating train split:  50%|█████     | 15238/30338 [00:00<00:00, 20904.30 examples/s]Generating train split:  75%|███████▌  | 22857/30338 [00:00<00:00, 27040.33 examples/s]Generating train split: 100%|██████████| 30338/30338 [00:01<00:00, 26516.73 examples/s]
-Generating val split:   0%|          | 0/10420 [00:00<?, ? examples/s]Generating val split:  74%|███████▎  | 7677/10420 [00:00<00:00, 17899.83 examples/s]Generating val split: 100%|██████████| 10420/10420 [00:00<00:00, 20160.64 examples/s]
-Generating test split:   0%|          | 0/12995 [00:00<?, ? examples/s]Generating test split:  63%|██████▎   | 8141/12995 [00:00<00:00, 20110.64 examples/s]Generating test split: 100%|██████████| 12995/12995 [00:00<00:00, 22179.71 examples/s]
-Map:   0%|          | 0/30338 [00:00<?, ? examples/s]Map:  36%|███▋      | 11000/30338 [00:00<00:00, 93308.36 examples/s]Map:  79%|███████▉  | 24000/30338 [00:00<00:00, 106827.89 examples/s]Map: 100%|██████████| 30338/30338 [00:00<00:00, 61123.86 examples/s] 
-Casting the dataset:   0%|          | 0/30338 [00:00<?, ? examples/s]Casting the dataset:  10%|▉         | 3000/30338 [00:00<00:01, 17661.22 examples/s]Casting the dataset:  23%|██▎       | 7000/30338 [00:00<00:01, 20007.83 examples/s]Casting the dataset:  30%|██▉       | 9000/30338 [00:00<00:01, 19883.98 examples/s]Casting the dataset:  43%|████▎     | 13000/30338 [00:00<00:00, 21065.69 examples/s]Casting the dataset:  53%|█████▎    | 16000/30338 [00:00<00:00, 20287.52 examples/s]Casting the dataset:  63%|██████▎   | 19000/30338 [00:00<00:00, 19674.74 examples/s]Casting the dataset:  76%|███████▌  | 23000/30338 [00:01<00:00, 20511.78 examples/s]Casting the dataset:  86%|████████▌ | 26000/30338 [00:01<00:00, 20308.31 examples/s]Casting the dataset:  96%|█████████▌| 29000/30338 [00:01<00:00, 20723.26 examples/s]Casting the dataset: 100%|██████████| 30338/30338 [00:01<00:00, 17471.47 examples/s]
-Map:   0%|          | 0/10420 [00:00<?, ? examples/s]Map: 100%|██████████| 10420/10420 [00:00<00:00, 59539.06 examples/s]Map: 100%|██████████| 10420/10420 [00:00<00:00, 47907.89 examples/s]
-Casting the dataset:   0%|          | 0/10420 [00:00<?, ? examples/s]Casting the dataset:  29%|██▉       | 3000/10420 [00:00<00:00, 18698.00 examples/s]Casting the dataset:  48%|████▊     | 5000/10420 [00:00<00:00, 18682.29 examples/s]Casting the dataset:  67%|██████▋   | 7000/10420 [00:00<00:00, 19126.27 examples/s]Casting the dataset:  86%|████████▋ | 9000/10420 [00:00<00:00, 18587.05 examples/s]Casting the dataset: 100%|██████████| 10420/10420 [00:00<00:00, 14944.15 examples/s]
-Map:   0%|          | 0/12995 [00:00<?, ? examples/s]Map: 100%|██████████| 12995/12995 [00:00<00:00, 113121.00 examples/s]Map: 100%|██████████| 12995/12995 [00:00<00:00, 51679.51 examples/s] 
-Casting the dataset:   0%|          | 0/12995 [00:00<?, ? examples/s]Casting the dataset:  15%|█▌        | 2000/12995 [00:00<00:00, 17736.14 examples/s]Casting the dataset:  38%|███▊      | 5000/12995 [00:00<00:00, 17235.12 examples/s]Casting the dataset:  54%|█████▍    | 7000/12995 [00:00<00:00, 17646.27 examples/s]Casting the dataset:  85%|████████▍ | 11000/12995 [00:00<00:00, 19864.64 examples/s]Casting the dataset: 100%|██████████| 12995/12995 [00:00<00:00, 16377.61 examples/s]Casting the dataset: 100%|██████████| 12995/12995 [00:00<00:00, 16079.47 examples/s]
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights:  26%|██▌       | 132/517 [00:00<00:00, 1309.69it/s]Loading weights:  51%|█████     | 263/517 [00:00<00:00, 1151.26it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 1612.25it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 58733.83it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: No netrc file found, creating one.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run btnyzr4k
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260424_215821-btnyzr4k
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/btnyzr4k
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading output.log; uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▂▂▂▂▃▃▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▆▆▆▆▆▆▆▇▇▇█████
-wandb:        train/batch_acc ▆▂▁▂▁▅▁▁▂▃▂▂▅▅▅▅▄▅▇▅▅▂▄▅▆▄▅▅▄▄▅▅▅▅▆█▆▅▇▅
-wandb:             train/loss █▃▃▄▃▂▃▂▃▂▂▂▂▂▁▂▂▂▂▂▂▂▂▁▁▂▂▁▁▁▂▁▁▂▁▁▁▁▁▁
-wandb: train/loss_contrastive █▄▃▃▃▂▂▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▂▁▁▁▂▁▂▁▁▁▁▁▁▁▂▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▁▃▃▆▃▇▅▅▅▅▅▄█▅▆▆▅▅▅
-wandb:              val/acc@5 ▁▁▆▆▅▆▇▆▆▆▆▇▆█▆▅▅▅▇▅
-wandb:      val/auc_csp_style ▁▁▄▃▅▄▆▅▅▅▅▄▄█▆▆▇▅▆▆
-wandb:               val/loss ▁▁▁▂▂▂▃▄▄▅▅▆▅▆▆▆▇▇██
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2749.67622
-wandb:        train/batch_acc 0.21875
-wandb:             train/loss 1.14655
-wandb: train/loss_contrastive 1.14655
-wandb:               train/lr 0.005
-wandb:              val/acc@1 0.08695
-wandb:              val/acc@5 0.26727
-wandb:      val/auc_csp_style 0.02195
-wandb:               val/loss 4.78133
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/btnyzr4k
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260424_215821-btnyzr4k/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17757.48it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 77632.56it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run bylz4gbw
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260424_224625-bylz4gbw
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/bylz4gbw
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.08695
-wandb:         val/acc@5 0.26727
-wandb: val/auc_csp_style 0.02195
-wandb:          val/loss 4.78133
-wandb:    val/seen_acc@1 0.16161
-wandb:    val/seen_acc@5 0.39371
-wandb:  val/unseen_acc@1 0.0709
-wandb:  val/unseen_acc@5 0.24009
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/bylz4gbw
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260424_224625-bylz4gbw/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17738.75it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 61185.83it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260424_224749-1lu94n5h
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/1lu94n5h
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07564
-wandb:         test/acc@5 0.25594
-wandb: test/auc_csp_style 0.01611
-wandb:          test/loss 4.77584
-wandb:    test/seen_acc@1 0.14538
-wandb:    test/seen_acc@5 0.39874
-wandb:  test/unseen_acc@1 0.06001
-wandb:  test/unseen_acc@5 0.22393
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/1lu94n5h
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260424_224749-1lu94n5h/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17351.11it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 70004.74it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260424_224822-5mubv4sq
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/5mubv4sq
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading output.log; uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▂▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▆▇▇▇▇███
-wandb:        train/batch_acc ▃▂▃▁▂▄▅▄▂▅▄▆▆▄▃▆▅▄▇▄▃▆▄▅▄▄▄▅▆█▆▄▇▄▆▆▅▄▅▅
-wandb:             train/loss █▆▅▅▅▄▃▄▄▄▃▄▄▄▃▃▄▂▄▃▃▃▃▂▂▃▁▄▃▂▁▂▂▁▂▁▁▂▂▂
-wandb: train/loss_contrastive █▆▅▆▄▃▄▃▃▃▃▃▄▃▃▃▂▂▂▃▁▃▁▂▂▂▁▁▁▂▂▂▂▁▁▁▁▂▂▂
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▁▃▃▆▃▇▅▅▅▅▅▄█▅▆▆▅▅▅
-wandb:              val/acc@5 ▁▁▆▆▅▆▇▆▆▆▆▇▆█▆▅▆▅▇▅
-wandb:      val/auc_csp_style ▁▁▄▃▅▄▆▅▅▅▅▄▄█▆▆▆▅▆▆
-wandb:               val/loss ▁▁▁▂▂▂▃▄▄▅▅▆▅▆▆▆▇▇██
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2750.19351
-wandb:        train/batch_acc 0.21875
-wandb:             train/loss 1.14681
-wandb: train/loss_contrastive 1.14681
-wandb:               train/lr 0.005
-wandb:              val/acc@1 0.08685
-wandb:              val/acc@5 0.26727
-wandb:      val/auc_csp_style 0.02193
-wandb:               val/loss 4.78125
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/5mubv4sq
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260424_224822-5mubv4sq/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18133.47it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 77301.83it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260424_233629-qc9foorr
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/qc9foorr
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.08685
-wandb:         val/acc@5 0.26727
-wandb: val/auc_csp_style 0.02193
-wandb:          val/loss 4.78125
-wandb:    val/seen_acc@1 0.16106
-wandb:    val/seen_acc@5 0.39371
-wandb:  val/unseen_acc@1 0.0709
-wandb:  val/unseen_acc@5 0.24009
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/qc9foorr
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260424_233629-qc9foorr/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17819.65it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 74487.22it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260424_233756-el2h7jt5
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/el2h7jt5
-wandb: updating run metadata
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07564
-wandb:         test/acc@5 0.25594
-wandb: test/auc_csp_style 0.01611
-wandb:          test/loss 4.77577
-wandb:    test/seen_acc@1 0.14538
-wandb:    test/seen_acc@5 0.39832
-wandb:  test/unseen_acc@1 0.06001
-wandb:  test/unseen_acc@5 0.22402
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/el2h7jt5
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260424_233756-el2h7jt5/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18263.14it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 60423.97it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run ljqgvgqq
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260424_233841-ljqgvgqq
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ljqgvgqq
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading output.log; uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▂▂▂▂▂▂▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▅▅▆▆▆▆▆▇▇▇▇▇███
-wandb:        train/batch_acc ▁▁▁▃▂▃▂▂▄▃▃▃▅▄▄▅▅▄▅▅█▅▆▅▄▅▅▅▆▄▅▆▆▇▆▇▆▆█▅
-wandb:             train/loss █▄▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▂▂▂▁▁▁▁▁▂▂▁
-wandb: train/loss_contrastive █▄▄▃▃▂▃▃▂▂▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▁▂▁▁▂▁▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▂▅▅▇▄▇▄▆▆▅▅▆█▆▆▇▅▆▆
-wandb:              val/acc@5 ▁▃▆▆▆▅█▆█▇▆▆▆█▆▅▇▆▅▆
-wandb:      val/auc_csp_style ▁▂▄▅▆▄▆▄▆▆▅▅▆█▆▆▇▅▆▆
-wandb:               val/loss ▁▁▂▂▂▂▃▄▄▄▅▅▆▅▆▆▆▇██
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2740.30769
-wandb:        train/batch_acc 0.24219
-wandb:             train/loss 1.63724
-wandb: train/loss_contrastive 1.63724
-wandb:               train/lr 0.005
-wandb:              val/acc@1 0.08935
-wandb:              val/acc@5 0.27553
-wandb:      val/auc_csp_style 0.02347
-wandb:               val/loss 5.0873
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ljqgvgqq
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260424_233841-ljqgvgqq/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18255.91it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 64413.22it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 3f9zft1w
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_002651-3f9zft1w
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/3f9zft1w
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.08935
-wandb:         val/acc@5 0.27553
-wandb: val/auc_csp_style 0.02347
-wandb:          val/loss 5.0873
-wandb:    val/seen_acc@1 0.17354
-wandb:    val/seen_acc@5 0.41161
-wandb:  val/unseen_acc@1 0.07125
-wandb:  val/unseen_acc@5 0.24627
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/3f9zft1w
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_002651-3f9zft1w/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18384.68it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 58959.95it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run sniee2fh
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_002824-sniee2fh
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/sniee2fh
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07911
-wandb:         test/acc@5 0.26218
-wandb: test/auc_csp_style 0.01663
-wandb:          test/loss 5.08604
-wandb:    test/seen_acc@1 0.15798
-wandb:    test/seen_acc@5 0.42017
-wandb:  test/unseen_acc@1 0.06142
-wandb:  test/unseen_acc@5 0.22675
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/sniee2fh
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_002824-sniee2fh/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17494.03it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 65000.12it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_002858-m7xaej3w
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/m7xaej3w
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading config.yaml; uploading output.log; uploading wandb-summary.json
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▁▂▂▂▂▂▂▃▃▃▃▄▄▄▄▄▄▅▅▅▅▆▆▆▆▆▇▇▇▇▇▇▇███
-wandb:        train/batch_acc ▁▁▂▃▂▂▂▂▄▃▅▄▃▄▄▅▄▅▅▄▅▅█▅▆▄▆▄█▆▅▆▄▇▆▇▆▆▅▆
-wandb:             train/loss ██▇▅▅▄▄▄▃▄▅▄▄▄▃▃▃▄▃▃▂▂▃▂▂▃▂▂▃▁▃▁▂▂▁▂▁▂▂▂
-wandb: train/loss_contrastive █▆▆▅▅▅▄▅▄▄▃▂▃▃▄▃▃▂▄▂▃▂▂▂▂▃▁▁▂▂▂▃▁▁▁▂▂▂▂▂
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▂▅▅▇▄▇▄▆▆▅▅▆█▆▆▇▅▆▆
-wandb:              val/acc@5 ▁▃▆▆▆▅█▆█▇▆▆▆█▆▅▇▆▅▆
-wandb:      val/auc_csp_style ▁▂▄▅▆▄▆▄▆▆▅▅▆█▆▆▇▅▆▆
-wandb:               val/loss ▁▁▂▂▂▂▃▄▄▄▅▅▆▅▆▆▆▇██
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2737.83465
-wandb:        train/batch_acc 0.24219
-wandb:             train/loss 1.63736
-wandb: train/loss_contrastive 1.63736
-wandb:               train/lr 0.005
-wandb:              val/acc@1 0.08944
-wandb:              val/acc@5 0.27562
-wandb:      val/auc_csp_style 0.02352
-wandb:               val/loss 5.08727
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/m7xaej3w
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_002858-m7xaej3w/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17394.40it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 61149.97it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 84augosg
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_011655-84augosg
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/84augosg
-wandb: updating run metadata
-wandb: uploading wandb-metadata.json; uploading requirements.txt; uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.08944
-wandb:         val/acc@5 0.27562
-wandb: val/auc_csp_style 0.02352
-wandb:          val/loss 5.08727
-wandb:    val/seen_acc@1 0.17354
-wandb:    val/seen_acc@5 0.41161
-wandb:  val/unseen_acc@1 0.07136
-wandb:  val/unseen_acc@5 0.24639
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/84augosg
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_011655-84augosg/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17667.78it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 67322.67it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_011828-12ojz9xj
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/12ojz9xj
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07918
-wandb:         test/acc@5 0.2621
-wandb: test/auc_csp_style 0.01666
-wandb:          test/loss 5.08603
-wandb:    test/seen_acc@1 0.15798
-wandb:    test/seen_acc@5 0.42059
-wandb:  test/unseen_acc@1 0.06152
-wandb:  test/unseen_acc@5 0.22657
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/12ojz9xj
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_011828-12ojz9xj/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17333.08it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 57824.41it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_011905-bjj5gux3
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/bjj5gux3
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading history steps 167-168, summary, console lines 41-41
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▁▂▂▂▂▂▃▃▃▃▃▃▃▄▄▄▅▅▅▆▆▆▆▇▇▇▇▇▇▇▇▇████
-wandb:        train/batch_acc ▂▁▃▂▂▁▄▅▃▁▄▅▅▃▅▄▂▅▆▆▆▄█▅▄▄▅▅▅▆▆▅▅▇▆▆▆▅▅▆
-wandb:             train/loss █▄▃▂▃▂▂▃▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▁▂▁▁▂▂▁▁▂▁▁▁▁▁▁
-wandb: train/loss_contrastive █▅▄▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▂█▆▆▄▇▄▄▄▅▃▃█▃▄▇▅▁▅
-wandb:              val/acc@5 ▁▅█▇█▇█▇▇▇▇▇▆█▆▅▅▅▆▅
-wandb:      val/auc_csp_style ▁▃▇▆▆▅▇▅▅▅▆▄▅█▅▅▆▅▃▅
-wandb:               val/loss ▁▁▂▂▂▃▃▄▄▅▅▆▆▆▆▇▇▇██
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2746.80329
-wandb:        train/batch_acc 0.25
-wandb:             train/loss 0.99711
-wandb: train/loss_contrastive 0.99711
-wandb:               train/lr 0.0005
-wandb:              val/acc@1 0.08848
-wandb:              val/acc@5 0.26823
-wandb:      val/auc_csp_style 0.02169
-wandb:               val/loss 4.96974
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/bjj5gux3
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_011905-bjj5gux3/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18249.46it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 63352.30it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_020706-yw9ow4av
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/yw9ow4av
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.08848
-wandb:         val/acc@5 0.26823
-wandb: val/auc_csp_style 0.02169
-wandb:          val/loss 4.96974
-wandb:    val/seen_acc@1 0.17245
-wandb:    val/seen_acc@5 0.40564
-wandb:  val/unseen_acc@1 0.07043
-wandb:  val/unseen_acc@5 0.23869
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/yw9ow4av
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_020706-yw9ow4av/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17886.38it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 76698.05it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run q84fj0x8
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_020827-q84fj0x8
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/q84fj0x8
-wandb: updating run metadata
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07403
-wandb:         test/acc@5 0.25063
-wandb: test/auc_csp_style 0.01497
-wandb:          test/loss 4.96669
-wandb:    test/seen_acc@1 0.15546
-wandb:    test/seen_acc@5 0.4063
-wandb:  test/unseen_acc@1 0.05577
-wandb:  test/unseen_acc@5 0.21573
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/q84fj0x8
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_020827-q84fj0x8/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17424.59it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 56272.81it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_020901-xyr1ag3l
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/xyr1ag3l
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading wandb-summary.json; uploading config.yaml; uploading output.log
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▁▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▄▅▅▅▅▆▆▆▆▆▆▇▇▇▇█████
-wandb:        train/batch_acc ▁▂▃▆▅▂▂▂▄▅▄▄▄▄▆▆▆▅█▆▆▅▅▆▅▆▆▇▅▇█▇▆▃▆▅▄▇▆▆
-wandb:             train/loss █▄▃▃▃▂▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb: train/loss_contrastive █▆▆▅▅▅▄▃▄▃▃▃▃▃▂▃▃▃▂▂▃▃▃▂▂▂▂▁▂▁▂▁▂▂▂▂▁▁▂▂
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▂█▆▆▄▇▄▄▄▅▃▃█▃▄▇▅▁▅
-wandb:              val/acc@5 ▁▅█▇█▇█▇▇▇▇▇▆█▆▅▅▅▆▅
-wandb:      val/auc_csp_style ▁▃▇▆▆▅▇▅▅▅▆▄▅█▅▅▆▅▃▅
-wandb:               val/loss ▁▁▂▂▂▃▃▄▄▅▅▆▆▆▆▇▇▇██
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2749.22354
-wandb:        train/batch_acc 0.25
-wandb:             train/loss 0.99711
-wandb: train/loss_contrastive 0.99711
-wandb:               train/lr 0.0005
-wandb:              val/acc@1 0.08848
-wandb:              val/acc@5 0.26823
-wandb:      val/auc_csp_style 0.02169
-wandb:               val/loss 4.96974
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/xyr1ag3l
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_020901-xyr1ag3l/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17784.28it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 62470.36it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_025657-msz5gbxv
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/msz5gbxv
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.08848
-wandb:         val/acc@5 0.26823
-wandb: val/auc_csp_style 0.02169
-wandb:          val/loss 4.96974
-wandb:    val/seen_acc@1 0.17245
-wandb:    val/seen_acc@5 0.40564
-wandb:  val/unseen_acc@1 0.07043
-wandb:  val/unseen_acc@5 0.23869
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/msz5gbxv
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_025657-msz5gbxv/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17498.69it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 62328.08it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_025821-9l7tzwof
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/9l7tzwof
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07403
-wandb:         test/acc@5 0.25063
-wandb: test/auc_csp_style 0.01497
-wandb:          test/loss 4.96669
-wandb:    test/seen_acc@1 0.15546
-wandb:    test/seen_acc@5 0.4063
-wandb:  test/unseen_acc@1 0.05577
-wandb:  test/unseen_acc@5 0.21573
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/9l7tzwof
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_025821-9l7tzwof/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17235.54it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 71654.42it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_025854-9b26eb6t
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/9b26eb6t
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading history steps 91-92, summary, console lines 41-41
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▂▂▂▂▂▂▂▃▃▃▃▃▃▃▃▃▄▄▄▄▅▅▅▅▆▆▆▆▆▆▇▇▇▇███
-wandb:        train/batch_acc ▁▂▂▃▄▅▅▄▅▅▅▅▅▄▅▇▅▅▅▆▅▆▆▅▆▆▇▆█▇▆▅▇▇▅▆▅▅█▅
-wandb:             train/loss █▄▄▄▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▁▂▂▁▂▂▁▂▁▁▁▁▂▂▁▁▁▁▁▁
-wandb: train/loss_contrastive ██▇▅▅▄▄▅▄▄▄▅▄▄▄▃▂▃▃▃▃▂▂▃▂▃▂▂▂▂▁▂▂▂▂▁▁▂▁▂
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▄▇▅▇▅▆▅▆▆▅▆▆█▆▆▆▅▅▅
-wandb:              val/acc@5 ▁▄▇▆▇▇▇▇█▇▆▇▇█▆▅▆▆▆▅
-wandb:      val/auc_csp_style ▁▃▇▅▆▅▆▅▆▇▆▇▇█▆▆▇▆▆▅
-wandb:               val/loss ▁▁▁▁▂▂▂▃▃▄▄▅▅▅▆▆▆▇▇█
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2739.13851
-wandb:        train/batch_acc 0.26172
-wandb:             train/loss 1.45555
-wandb: train/loss_contrastive 1.45555
-wandb:               train/lr 0.0005
-wandb:              val/acc@1 0.09069
-wandb:              val/acc@5 0.27793
-wandb:      val/auc_csp_style 0.02274
-wandb:               val/loss 5.04717
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/9b26eb6t
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_025854-9b26eb6t/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17607.24it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 60595.05it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_034656-4py3yulr
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/4py3yulr
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.09069
-wandb:         val/acc@5 0.27793
-wandb: val/auc_csp_style 0.02274
-wandb:          val/loss 5.04717
-wandb:    val/seen_acc@1 0.1936
-wandb:    val/seen_acc@5 0.42625
-wandb:  val/unseen_acc@1 0.06856
-wandb:  val/unseen_acc@5 0.24604
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/4py3yulr
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_034656-4py3yulr/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17688.39it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 60476.51it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_034827-u9prtnn3
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/u9prtnn3
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07241
-wandb:         test/acc@5 0.26249
-wandb: test/auc_csp_style 0.01434
-wandb:          test/loss 5.05148
-wandb:    test/seen_acc@1 0.16723
-wandb:    test/seen_acc@5 0.43109
-wandb:  test/unseen_acc@1 0.05115
-wandb:  test/unseen_acc@5 0.22468
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/u9prtnn3
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_034827-u9prtnn3/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17826.97it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 77603.69it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_034907-ua0c2wg8
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ua0c2wg8
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading output.log; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▁▂▂▂▂▂▃▃▃▃▄▄▄▄▄▄▄▅▅▅▅▆▆▆▆▆▇▇▇▇▇▇████
-wandb:        train/batch_acc ▁▄▃▅▅▄▅▅▆▅▆▅▅▅▆▇▆▇▇▇▆▇█▆▇▇▆▇▇▇▇▆█▇▆█▆▇▇▆
-wandb:             train/loss █▄▃▃▃▃▂▂▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▁▁▂▁▁▁▁▁▁▁▁
-wandb: train/loss_contrastive █▄▄▃▃▃▃▃▃▃▂▂▃▂▂▂▂▂▂▂▂▂▂▂▂▁▂▁▁▂▂▁▁▁▁▁▁▁▁▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▄▇▅▇▅▆▅▆▆▅▆▆█▆▆▆▅▅▅
-wandb:              val/acc@5 ▁▄▇▆▇▇▇▇█▇▆▇▇█▆▅▆▆▆▅
-wandb:      val/auc_csp_style ▁▃▇▅▆▅▆▅▆▇▆▇▇█▆▆▇▆▆▅
-wandb:               val/loss ▁▁▁▁▂▂▂▃▃▄▄▅▅▅▆▆▆▇▇█
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2736.52201
-wandb:        train/batch_acc 0.26172
-wandb:             train/loss 1.45555
-wandb: train/loss_contrastive 1.45555
-wandb:               train/lr 0.0005
-wandb:              val/acc@1 0.09069
-wandb:              val/acc@5 0.27793
-wandb:      val/auc_csp_style 0.02274
-wandb:               val/loss 5.04717
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ua0c2wg8
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_034907-ua0c2wg8/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18088.70it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 70525.26it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_043707-yu5robt1
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/yu5robt1
-wandb: updating run metadata
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.09069
-wandb:         val/acc@5 0.27793
-wandb: val/auc_csp_style 0.02274
-wandb:          val/loss 5.04717
-wandb:    val/seen_acc@1 0.1936
-wandb:    val/seen_acc@5 0.42625
-wandb:  val/unseen_acc@1 0.06856
-wandb:  val/unseen_acc@5 0.24604
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/yu5robt1
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_043707-yu5robt1/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17620.55it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 57065.36it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_043839-dwclredq
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/dwclredq
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07241
-wandb:         test/acc@5 0.26249
-wandb: test/auc_csp_style 0.01434
-wandb:          test/loss 5.05148
-wandb:    test/seen_acc@1 0.16723
-wandb:    test/seen_acc@5 0.43109
-wandb:  test/unseen_acc@1 0.05115
-wandb:  test/unseen_acc@5 0.22468
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/dwclredq
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_043839-dwclredq/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17674.69it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 65282.27it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_043913-jjn7ngdz
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/jjn7ngdz
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading output.log; uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▁▂▂▂▂▂▃▃▃▃▃▃▃▄▄▄▄▄▄▅▅▅▅▅▅▅▆▆▇▇▇▇████
-wandb:        train/batch_acc ▂▁▄▂▄▅▅▄▄▆▄▄▄▅▅▅▅▅▅▇▄▄▄▅▅▅█▆▇█▇▆▇▆▇▇█▆▆▇
-wandb:             train/loss █▆▅▅▄▃▃▃▃▃▂▂▃▂▂▂▂▂▂▂▂▂▂▁▂▂▁▂▁▂▁▂▂▂▁▁▁▁▁▁
-wandb: train/loss_contrastive █▅▃▃▃▂▃▃▂▃▃▃▂▂▂▁▂▂▂▂▂▁▂▁▁▁▁▂▁▂▁▁▁▁▁▁▁▂▂▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▃▄▅▆▆▆▇▇▇▇▇████████
-wandb:              val/acc@5 ▁▃▅▅▆▆▇▇▇▇▇▇████████
-wandb:      val/auc_csp_style ▁▃▄▄▅▅▆▆▆▇▇▇▇▇▇█▇███
-wandb:               val/loss █▄▂▂▁▁▁▁▁▁▁▂▂▂▂▂▂▃▃▃
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2748.83504
-wandb:        train/batch_acc 0.20312
-wandb:             train/loss 1.60401
-wandb: train/loss_contrastive 1.60401
-wandb:               train/lr 5e-05
-wandb:              val/acc@1 0.09885
-wandb:              val/acc@5 0.29875
-wandb:      val/auc_csp_style 0.02568
-wandb:               val/loss 4.13954
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/jjn7ngdz
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_043913-jjn7ngdz/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18698.74it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 53065.45it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_052716-oqpp334o
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/oqpp334o
-wandb: updating run metadata
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.09885
-wandb:         val/acc@5 0.29875
-wandb: val/auc_csp_style 0.02568
-wandb:          val/loss 4.13954
-wandb:    val/seen_acc@1 0.19143
-wandb:    val/seen_acc@5 0.43872
-wandb:  val/unseen_acc@1 0.07894
-wandb:  val/unseen_acc@5 0.26866
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/oqpp334o
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_052716-oqpp334o/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17815.70it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 76169.60it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_052845-8bxfezrn
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/8bxfezrn
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07595
-wandb:         test/acc@5 0.27418
-wandb: test/auc_csp_style 0.01517
-wandb:          test/loss 4.1549
-wandb:    test/seen_acc@1 0.18151
-wandb:    test/seen_acc@5 0.43655
-wandb:  test/unseen_acc@1 0.05228
-wandb:  test/unseen_acc@5 0.23778
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/8bxfezrn
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_052845-8bxfezrn/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17725.69it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 77273.20it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_052925-o4qnyv8q
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/o4qnyv8q
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading history steps 167-168, summary, console lines 41-41
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▁▂▂▂▂▂▂▂▃▃▃▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▇▇▇▇▇█████
-wandb:        train/batch_acc ▁▁▁▃▄▄▃▃▅▅▄▄▄▅▅▄▆▄▅▆▅▄▄▅▅▅▄▇▆▆▆▅▇▆▆▆█▆▇▆
-wandb:             train/loss █▆▆▆▅▅▄▄▄▄▃▄▄▃▃▂▃▂▂▂▃▃▂▂▂▁▂▂▂▁▂▂▂▁▂▁▁▂▁▂
-wandb: train/loss_contrastive █▆▅▄▄▃▃▃▃▃▂▃▂▂▂▃▂▃▂▂▂▂▂▂▂▂▁▂▂▂▁▂▁▁▁▁▁▂▂▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▃▄▅▆▆▆▇▇▇▇▇████████
-wandb:              val/acc@5 ▁▃▅▅▆▆▇▇▇▇▇▇████████
-wandb:      val/auc_csp_style ▁▃▄▄▅▅▆▆▆▇▇▇▇▇▇█▇███
-wandb:               val/loss █▄▂▂▁▁▁▁▁▁▁▂▂▂▂▂▂▃▃▃
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2751.99276
-wandb:        train/batch_acc 0.20312
-wandb:             train/loss 1.60401
-wandb: train/loss_contrastive 1.60401
-wandb:               train/lr 5e-05
-wandb:              val/acc@1 0.09885
-wandb:              val/acc@5 0.29875
-wandb:      val/auc_csp_style 0.02568
-wandb:               val/loss 4.13954
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/o4qnyv8q
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_052925-o4qnyv8q/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17301.41it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 78505.13it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run s9ttc5qt
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_061721-s9ttc5qt
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/s9ttc5qt
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.09885
-wandb:         val/acc@5 0.29875
-wandb: val/auc_csp_style 0.02568
-wandb:          val/loss 4.13954
-wandb:    val/seen_acc@1 0.19143
-wandb:    val/seen_acc@5 0.43872
-wandb:  val/unseen_acc@1 0.07894
-wandb:  val/unseen_acc@5 0.26866
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/s9ttc5qt
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_061721-s9ttc5qt/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17812.04it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 67466.88it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 35bis232
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_061847-35bis232
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/35bis232
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07595
-wandb:         test/acc@5 0.27418
-wandb: test/auc_csp_style 0.01517
-wandb:          test/loss 4.1549
-wandb:    test/seen_acc@1 0.18151
-wandb:    test/seen_acc@5 0.43655
-wandb:  test/unseen_acc@1 0.05228
-wandb:  test/unseen_acc@5 0.23778
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/35bis232
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_061847-35bis232/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17849.87it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 63620.30it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_061920-cu0myvcq
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/cu0myvcq
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading history steps 91-92, summary, console lines 41-41
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▂▂▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▄▄▄▅▅▅▅▅▆▆▆▆▇▇▇▇▇██
-wandb:        train/batch_acc ▁▁▂▂▃▃▃▃▄▃▄▄▅▄▄▅▆▄▄▆▅▆▆▆▆▆▇▅▇▇▇▆▆▆▇██▇▆█
-wandb:             train/loss █▇▅▄▄▄▄▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▁▂▁▂▁▁▁▂▂▁▁
-wandb: train/loss_contrastive █▅▅▄▄▄▃▃▃▃▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▁▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▃▄▅▅▆▆▆▇▇▇▇▇▇▇█████
-wandb:              val/acc@5 ▁▃▄▅▆▆▆▇▇▇▇▇▇███████
-wandb:      val/auc_csp_style ▁▂▃▄▄▅▅▆▆▆▆▇▇▇▇█████
-wandb:               val/loss █▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2733.45915
-wandb:        train/batch_acc 0.23047
-wandb:             train/loss 2.19334
-wandb: train/loss_contrastive 2.19334
-wandb:               train/lr 5e-05
-wandb:              val/acc@1 0.09683
-wandb:              val/acc@5 0.29501
-wandb:      val/auc_csp_style 0.02461
-wandb:               val/loss 4.39364
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/cu0myvcq
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_061920-cu0myvcq/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17592.24it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 67030.72it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_070715-t5ogsp04
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/t5ogsp04
-wandb: updating run metadata
-wandb: uploading requirements.txt; uploading wandb-summary.json; uploading config.yaml; uploading wandb-metadata.json
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.09683
-wandb:         val/acc@5 0.29501
-wandb: val/auc_csp_style 0.02461
-wandb:          val/loss 4.39364
-wandb:    val/seen_acc@1 0.18818
-wandb:    val/seen_acc@5 0.43221
-wandb:  val/unseen_acc@1 0.07719
-wandb:  val/unseen_acc@5 0.26551
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/t5ogsp04
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_070715-t5ogsp04/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17881.66it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 66698.62it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run oju6r6lw
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_070847-oju6r6lw
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/oju6r6lw
-wandb: updating run metadata
-wandb: uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07518
-wandb:         test/acc@5 0.27295
-wandb: test/auc_csp_style 0.01499
-wandb:          test/loss 4.40365
-wandb:    test/seen_acc@1 0.17395
-wandb:    test/seen_acc@5 0.43109
-wandb:  test/unseen_acc@1 0.05304
-wandb:  test/unseen_acc@5 0.23749
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/oju6r6lw
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_070847-oju6r6lw/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17942.92it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 47443.10it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run obd0751b
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_070925-obd0751b
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/obd0751b
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading history steps 91-92, summary, console lines 41-41
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▂▂▂▂▂▂▃▃▃▃▃▃▃▄▄▄▄▄▄▄▅▅▅▅▅▅▅▆▆▆▆▇▇▇███
-wandb:        train/batch_acc ▁▂▂▃▃▄▄▄▅▅▄▅▄▄▆▅▅▆▆▅▆▆▇▅▅▇▇▇▆▇▆▆▇▆▇▇▆▇▇█
-wandb:             train/loss █▆▆▅▅▅▄▄▄▄▄▄▃▃▃▃▃▃▂▂▃▂▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂
-wandb: train/loss_contrastive █▆▅▅▄▄▄▄▃▃▄▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▁▁▂▂▁▂▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▃▄▅▅▆▆▆▇▇▇▇▇▇▇█████
-wandb:              val/acc@5 ▁▃▄▅▆▆▆▇▇▇▇▇▇███████
-wandb:      val/auc_csp_style ▁▂▃▄▄▅▅▆▆▆▆▇▇▇▇█████
-wandb:               val/loss █▅▃▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2741.46853
-wandb:        train/batch_acc 0.23047
-wandb:             train/loss 2.19334
-wandb: train/loss_contrastive 2.19334
-wandb:               train/lr 5e-05
-wandb:              val/acc@1 0.09683
-wandb:              val/acc@5 0.29501
-wandb:      val/auc_csp_style 0.02461
-wandb:               val/loss 4.39364
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/obd0751b
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_070925-obd0751b/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17831.22it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 51747.82it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 4nz3bxiy
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_075729-4nz3bxiy
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/4nz3bxiy
-wandb: updating run metadata; uploading summary
-wandb: uploading requirements.txt; uploading wandb-summary.json; uploading config.yaml; uploading wandb-metadata.json
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.09683
-wandb:         val/acc@5 0.29501
-wandb: val/auc_csp_style 0.02461
-wandb:          val/loss 4.39364
-wandb:    val/seen_acc@1 0.18818
-wandb:    val/seen_acc@5 0.43221
-wandb:  val/unseen_acc@1 0.07719
-wandb:  val/unseen_acc@5 0.26551
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/4nz3bxiy
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_075729-4nz3bxiy/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17972.96it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 55171.79it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run ol0wrlxq
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_075855-ol0wrlxq
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ol0wrlxq
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07518
-wandb:         test/acc@5 0.27295
-wandb: test/auc_csp_style 0.01499
-wandb:          test/loss 4.40365
-wandb:    test/seen_acc@1 0.17395
-wandb:    test/seen_acc@5 0.43109
-wandb:  test/unseen_acc@1 0.05304
-wandb:  test/unseen_acc@5 0.23749
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ol0wrlxq
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_075855-ol0wrlxq/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18199.98it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 51638.97it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 3jfl8iqy
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_075935-3jfl8iqy
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/3jfl8iqy
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading history steps 167-168, summary, console lines 41-41
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▁▁▂▂▂▂▃▃▃▃▃▃▄▅▅▅▅▅▅▅▆▆▆▆▇▇▇▇▇▇▇▇█████
-wandb:        train/batch_acc ▂▁▁▂▂▃▂▄▃▃▂▄▄▄▄▆▅▆▅▄▄▅▆▅▅▆█▆▆▆▆▆▆▆▇▆▆▇█▆
-wandb:             train/loss ▇█▅▆▆▅▄▅▅▅▅▄▄▄▃▄▃▃▂▂▃▂▃▃▂▃▂▂▃▂▂▂▁▂▂▂▂▁▁▁
-wandb: train/loss_contrastive █▆▆▄▃▃▃▃▃▃▃▃▂▂▂▃▂▂▃▂▂▂▃▂▂▂▂▁▁▁▂▁▁▁▁▁▁▁▁▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▃▄▅▆▆▆▇▇▇▇▇████████
-wandb:              val/acc@5 ▁▃▅▅▆▆▇▇▇▇▇▇████████
-wandb:      val/auc_csp_style ▁▃▄▄▅▅▆▆▆▇▇▇▇▇▇█▇███
-wandb:               val/loss █▄▂▂▁▁▁▁▁▁▁▂▂▂▂▂▂▃▃▃
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2748.5204
-wandb:        train/batch_acc 0.20312
-wandb:             train/loss 1.60401
-wandb: train/loss_contrastive 1.60401
-wandb:               train/lr 5e-05
-wandb:              val/acc@1 0.09885
-wandb:              val/acc@5 0.29875
-wandb:      val/auc_csp_style 0.02568
-wandb:               val/loss 4.13954
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/3jfl8iqy
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_075935-3jfl8iqy/logs
-Processing Files (0 / 0)      : |          |  0.00B /  0.00B            
-New Data Upload               : |          |  0.00B /  0.00B            [A
-
-  ...ainable_model.safetensors:   3%|▎         | 8.03MB /  258MB            [A[A
-
-  ...ainable_model.safetensors:   3%|▎         | 8.03MB /  258MB            [A[AProcessing Files (0 / 1)      :   3%|▎         | 8.03MB /  258MB, 40.2MB/s  
-
-  ...ainable_model.safetensors: 100%|█████████▉|  257MB /  258MB            [A[AProcessing Files (0 / 1)      : 100%|█████████▉|  257MB /  258MB,  643MB/s  
-New Data Upload               :  97%|█████████▋| 7.82MB / 8.08MB, 19.5MB/s  [A
-
-  ...ainable_model.safetensors: 100%|█████████▉|  257MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  322MB/s  
-New Data Upload               : 100%|██████████| 8.08MB / 8.08MB, 10.1MB/s  [A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  215MB/s  
-New Data Upload               : 100%|██████████| 8.08MB / 8.08MB, 6.73MB/s  
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17995.03it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 61374.79it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run mae5yxtv
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_084737-mae5yxtv
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/mae5yxtv
-wandb: updating run metadata; uploading summary
-wandb: uploading requirements.txt; uploading wandb-summary.json; uploading config.yaml; uploading wandb-metadata.json
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.09885
-wandb:         val/acc@5 0.29875
-wandb: val/auc_csp_style 0.02568
-wandb:          val/loss 4.13954
-wandb:    val/seen_acc@1 0.19143
-wandb:    val/seen_acc@5 0.43872
-wandb:  val/unseen_acc@1 0.07894
-wandb:  val/unseen_acc@5 0.26866
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/mae5yxtv
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_084737-mae5yxtv/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17328.51it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 76410.17it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run ifuj27cf
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_084909-ifuj27cf
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed0
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ifuj27cf
-wandb: updating run metadata; uploading summary
-wandb: uploading wandb-metadata.json; uploading requirements.txt; uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07595
-wandb:         test/acc@5 0.27418
-wandb: test/auc_csp_style 0.01517
-wandb:          test/loss 4.1549
-wandb:    test/seen_acc@1 0.18151
-wandb:    test/seen_acc@5 0.43655
-wandb:  test/unseen_acc@1 0.05228
-wandb:  test/unseen_acc@5 0.23778
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed0 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ifuj27cf
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_084909-ifuj27cf/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights:  19%|█▊        | 96/517 [00:00<00:00, 946.90it/s]Loading weights:  37%|███▋      | 191/517 [00:00<00:00, 826.45it/s]Loading weights:  53%|█████▎    | 275/517 [00:00<00:00, 704.61it/s]Loading weights:  67%|██████▋   | 348/517 [00:00<00:00, 690.57it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 1018.80it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 78221.87it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 8p11oi7x
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_084948-8p11oi7x
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed1
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/8p11oi7x
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▂▂▂▂▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▅▅▆▆▆▆▇▇▇▇▇▇▇█████
-wandb:        train/batch_acc ▁▁▂▄▄▃▅▄▃▅▄▄▅▅▆▅▆█▆▅▆▆▅▆▃▆█▆▆▇▇▇▆▆▆▆▇▆▇▇
-wandb:             train/loss █▇▅▅▄▄▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▁▁▂▂▂▂▂▁
-wandb: train/loss_contrastive █▆▆▆▅▅▅▅▄▄▄▄▃▄▃▃▃▃▃▃▃▃▃▂▃▃▃▂▂▂▃▂▂▂▂▂▂▃▂▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▄▅▆▆▆▇▇▇▇█▇▇███████
-wandb:              val/acc@5 ▁▄▅▅▆▆▆▇▇▇▇▇████████
-wandb:      val/auc_csp_style ▁▃▄▅▆▆▇▆▇▇█▇████████
-wandb:               val/loss █▄▂▁▁▁▁▁▁▁▂▂▂▂▃▃▃▃▄▄
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2751.20965
-wandb:        train/batch_acc 0.21875
-wandb:             train/loss 1.47775
-wandb: train/loss_contrastive 1.47775
-wandb:               train/lr 5e-05
-wandb:              val/acc@1 0.08858
-wandb:              val/acc@5 0.30202
-wandb:      val/auc_csp_style 0.02196
-wandb:               val/loss 4.16413
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed1 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/8p11oi7x
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_084948-8p11oi7x/logs
-Processing Files (0 / 0)      : |          |  0.00B /  0.00B            
-New Data Upload               : |          |  0.00B /  0.00B            [A
-
-  ...ainable_model.safetensors:  29%|██▉       | 76.0MB /  258MB            [A[A
-
-  ...ainable_model.safetensors:  29%|██▉       | 76.0MB /  258MB            [A[AProcessing Files (0 / 1)      :  29%|██▉       | 76.0MB /  258MB,   ???B/s  
-
-  ...ainable_model.safetensors: 100%|█████████▉|  258MB /  258MB            [A[AProcessing Files (0 / 1)      : 100%|█████████▉|  258MB /  258MB,  909MB/s  
-New Data Upload               :  98%|█████████▊| 3.91MB / 4.00MB, 19.6MB/s  [A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  454MB/s  
-New Data Upload               : 100%|██████████| 4.00MB / 4.00MB, 9.99MB/s  [A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  227MB/s  
-New Data Upload               : 100%|██████████| 4.00MB / 4.00MB, 5.00MB/s  
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17424.87it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 70605.80it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run l332tgys
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_093742-l332tgys
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed1
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/l332tgys
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.08858
-wandb:         val/acc@5 0.30202
-wandb: val/auc_csp_style 0.02196
-wandb:          val/loss 4.16413
-wandb:    val/seen_acc@1 0.19035
-wandb:    val/seen_acc@5 0.44089
-wandb:  val/unseen_acc@1 0.0667
-wandb:  val/unseen_acc@5 0.27215
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed1 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/l332tgys
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_093742-l332tgys/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17826.97it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 48948.30it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 4r2l38tg
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_093903-4r2l38tg
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed1
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/4r2l38tg
-wandb: updating run metadata
-wandb: uploading wandb-metadata.json; uploading requirements.txt; uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07888
-wandb:         test/acc@5 0.27387
-wandb: test/auc_csp_style 0.01587
-wandb:          test/loss 4.16283
-wandb:    test/seen_acc@1 0.16723
-wandb:    test/seen_acc@5 0.43739
-wandb:  test/unseen_acc@1 0.05907
-wandb:  test/unseen_acc@5 0.23721
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed1 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/4r2l38tg
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_093903-4r2l38tg/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17395.51it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 69694.93it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run yih6a2vs
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_093942-yih6a2vs
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed2
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/yih6a2vs
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading config.yaml; uploading output.log; uploading wandb-summary.json
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▂▂▂▂▂▃▃▃▃▄▄▄▄▄▄▄▄▅▅▅▅▆▆▆▆▆▇▇▇▇▇▇▇████
-wandb:        train/batch_acc ▁▁▃▃▃▃▄▄▅▅▄▄▄▆▅▅▅▃▅▆▅▆▅▆▅▆▆▆▅▆█▆▅▆▆▆█▇██
-wandb:             train/loss ██▇▆▅▄▅▄▃▄▅▄▄▅▃▄▄▃▂▂▃▃▂▃▂▃▁▁▂▁▁▁▂▂▂▂▁▂▂▁
-wandb: train/loss_contrastive █▇▇▆▆▅▄▃▅▄▅▄▄▃▄▃▃▄▃▃▃▂▂▂▂▂▃▂▂▂▂▁▂▁▃▂▁▁▂▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▃▅▆▆▇▇▇▇███████████
-wandb:              val/acc@5 ▁▄▅▆▆▇▇▇▇▇▇█████████
-wandb:      val/auc_csp_style ▁▃▄▅▆▆▆▇▇▇▇▇▇▇▇█████
-wandb:               val/loss █▄▂▂▁▁▁▁▁▁▁▂▂▂▂▂▃▃▃▃
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2745.90363
-wandb:        train/batch_acc 0.28125
-wandb:             train/loss 1.44237
-wandb: train/loss_contrastive 1.44237
-wandb:               train/lr 5e-05
-wandb:              val/acc@1 0.08935
-wandb:              val/acc@5 0.29664
-wandb:      val/auc_csp_style 0.02235
-wandb:               val/loss 4.13515
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed2 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/yih6a2vs
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_093942-yih6a2vs/logs
-Processing Files (0 / 0)      : |          |  0.00B /  0.00B            
-New Data Upload               : |          |  0.00B /  0.00B            [A
-
-  ...ainable_model.safetensors: 100%|█████████▉|  257MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|█████████▉|  257MB /  258MB            [A[AProcessing Files (0 / 1)      : 100%|█████████▉|  257MB /  258MB, 1.28GB/s  
-New Data Upload               :  95%|█████████▍| 3.80MB / 4.00MB, 18.9MB/s  [A
-
-  ...ainable_model.safetensors: 100%|█████████▉|  257MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  429MB/s  
-New Data Upload               : 100%|██████████| 4.00MB / 4.00MB, 6.67MB/s  [A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  258MB/s  
-New Data Upload               : 100%|██████████| 4.00MB / 4.00MB, 4.00MB/s  
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17777.87it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 63600.91it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 01j6h0kz
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_102731-01j6h0kz
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed2
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/01j6h0kz
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.08935
-wandb:         val/acc@5 0.29664
-wandb: val/auc_csp_style 0.02235
-wandb:          val/loss 4.13515
-wandb:    val/seen_acc@1 0.18113
-wandb:    val/seen_acc@5 0.43221
-wandb:  val/unseen_acc@1 0.06961
-wandb:  val/unseen_acc@5 0.26749
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed2 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/01j6h0kz
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_102731-01j6h0kz/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17680.46it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 70851.53it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run imxm7ouj
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_102859-imxm7ouj
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed2
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/imxm7ouj
-wandb: updating run metadata
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.07718
-wandb:         test/acc@5 0.28195
-wandb: test/auc_csp_style 0.01595
-wandb:          test/loss 4.1656
-wandb:    test/seen_acc@1 0.16849
-wandb:    test/seen_acc@5 0.4416
-wandb:  test/unseen_acc@1 0.05671
-wandb:  test/unseen_acc@5 0.24616
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed2 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/imxm7ouj
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_102859-imxm7ouj/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18477.58it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 76114.03it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run kz528ira
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_102938-kz528ira
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed3
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/kz528ira
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading output.log; uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▂▂▂▂▂▂▃▃▃▃▃▃▄▄▄▅▅▅▅▅▅▅▆▆▆▆▆▆▆▆▇▇▇▇▇██
-wandb:        train/batch_acc ▁▁▂▂▃▃▂▄▄▃▄▄▃▅▅▅▅▅▄▄▄▄▅▅▄▅▆▅▅▆▅▄▅▆▅▅▅█▅▆
-wandb:             train/loss █▆▅▅▄▃▄▃▃▃▂▂▃▃▃▃▃▂▂▂▂▂▃▂▂▂▂▁▂▂▂▁▂▁▁▁▁▂▂▁
-wandb: train/loss_contrastive █▅▅▅▄▄▄▄▃▄▃▄▃▃▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▁▂▂▁▁▁▂▂▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▄▅▆▇▇▇▇▇▇██████████
-wandb:              val/acc@5 ▁▃▅▅▆▆▇▇▇▇▇█████████
-wandb:      val/auc_csp_style ▁▃▄▅▆▆▇▇▇▇▇▇▇███████
-wandb:               val/loss █▄▂▂▁▁▁▁▁▁▁▂▂▂▂▃▃▃▃▄
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2749.16095
-wandb:        train/batch_acc 0.21875
-wandb:             train/loss 1.43941
-wandb: train/loss_contrastive 1.43941
-wandb:               train/lr 5e-05
-wandb:              val/acc@1 0.09328
-wandb:              val/acc@5 0.28762
-wandb:      val/auc_csp_style 0.02334
-wandb:               val/loss 4.16366
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed3 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/kz528ira
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_102938-kz528ira/logs
-Processing Files (0 / 0)      : |          |  0.00B /  0.00B            
-New Data Upload               : |          |  0.00B /  0.00B            [A
-
-  ...ainable_model.safetensors:  17%|█▋        | 44.0MB /  258MB            [A[A
-
-  ...ainable_model.safetensors:  17%|█▋        | 44.0MB /  258MB            [A[AProcessing Files (0 / 1)      :  17%|█▋        | 44.0MB /  258MB,   ???B/s  
-
-  ...ainable_model.safetensors: 100%|█████████▉|  257MB /  258MB            [A[AProcessing Files (0 / 1)      : 100%|█████████▉|  257MB /  258MB, 1.07GB/s  
-New Data Upload               :  95%|█████████▌| 3.82MB / 4.00MB, 19.2MB/s  [A
-
-  ...ainable_model.safetensors: 100%|█████████▉|  257MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  356MB/s  
-New Data Upload               : 100%|██████████| 4.00MB / 4.00MB, 6.67MB/s  [A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  267MB/s  
-New Data Upload               : 100%|██████████| 4.00MB / 4.00MB, 5.00MB/s  
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 18135.60it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 50458.94it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run do0hufoo
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_111738-do0hufoo
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed3
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/do0hufoo
-wandb: updating run metadata; uploading summary
-wandb: uploading wandb-metadata.json; uploading requirements.txt; uploading wandb-summary.json; uploading config.yaml
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.09328
-wandb:         val/acc@5 0.28762
-wandb: val/auc_csp_style 0.02334
-wandb:          val/loss 4.16366
-wandb:    val/seen_acc@1 0.20174
-wandb:    val/seen_acc@5 0.44469
-wandb:  val/unseen_acc@1 0.06996
-wandb:  val/unseen_acc@5 0.25385
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed3 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/do0hufoo
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_111738-do0hufoo/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17385.05it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 64957.12it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_111906-ztm8n2o8
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed3
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ztm8n2o8
-wandb: updating run metadata
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.08042
-wandb:         test/acc@5 0.26764
-wandb: test/auc_csp_style 0.01631
-wandb:          test/loss 4.16415
-wandb:    test/seen_acc@1 0.17479
-wandb:    test/seen_acc@5 0.43235
-wandb:  test/unseen_acc@1 0.05926
-wandb:  test/unseen_acc@5 0.23071
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed3 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/ztm8n2o8
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_111906-ztm8n2o8/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17877.68it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 50167.78it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_111943-x3lfo05n
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run train-cspref_mit_states-clip_similarity-seed4
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/x3lfo05n
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: updating run metadata
-wandb: uploading history steps 167-168, summary, console lines 41-41
-wandb: 
-wandb: Run history:
-wandb:                  epoch ▁▁▂▂▂▃▃▄▄▄▅▅▅▆▆▇▇▇██
-wandb:         time_elapsed_s ▁▁▁▂▂▂▂▂▂▂▃▃▃▃▃▄▄▄▄▄▄▄▅▅▅▅▆▆▆▆▆▆▇▇▇▇▇███
-wandb:        train/batch_acc ▁▂▂▃▃▃▃▃▄▃▄▅▄▅▄▅▄▅▆▅▅▄▄▅▅█▅▆▇▅▇▅▅▆▇▇▄▇▇▅
-wandb:             train/loss █▇▅▅▄▄▃▃▃▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▁▂▂▁▂▁▁▂▁▂▁▁▁▁
-wandb: train/loss_contrastive █▇▆▆▅▅▅▄▄▄▄▅▅▄▃▄▄▃▃▃▂▃▂▃▃▂▂▂▂▂▂▁▂▁▁▂▂▁▁▁
-wandb:               train/lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-wandb:              val/acc@1 ▁▃▅▅▆▆▆▆▇▇▇▇▇▇██████
-wandb:              val/acc@5 ▁▄▅▅▆▆▇▇▇▇▇▇████████
-wandb:      val/auc_csp_style ▁▃▄▄▅▆▆▆▆▆▇▇▇▇██████
-wandb:               val/loss █▃▂▂▁▁▁▁▁▁▁▂▂▂▂▃▃▃▃▄
-wandb:                     +4 ...
-wandb: 
-wandb: Run summary:
-wandb:                  epoch 19
-wandb:         time_elapsed_s 2749.60701
-wandb:        train/batch_acc 0.21094
-wandb:             train/loss 1.54517
-wandb: train/loss_contrastive 1.54517
-wandb:               train/lr 5e-05
-wandb:              val/acc@1 0.09098
-wandb:              val/acc@5 0.28378
-wandb:      val/auc_csp_style 0.02317
-wandb:               val/loss 4.1428
-wandb:                     +4 ...
-wandb: 
-wandb: 🚀 View run train-cspref_mit_states-clip_similarity-seed4 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/x3lfo05n
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_111943-x3lfo05n/logs
-Processing Files (0 / 0)      : |          |  0.00B /  0.00B            
-New Data Upload               : |          |  0.00B /  0.00B            [A
-
-  ...ainable_model.safetensors:  48%|████▊     |  124MB /  258MB            [A[A
-
-  ...ainable_model.safetensors:  48%|████▊     |  124MB /  258MB            [A[AProcessing Files (0 / 1)      :  48%|████▊     |  124MB /  258MB,   ???B/s  
-
-  ...ainable_model.safetensors: 100%|█████████▉|  258MB /  258MB            [A[AProcessing Files (0 / 1)      : 100%|█████████▉|  258MB /  258MB,  667MB/s  
-New Data Upload               :  98%|█████████▊| 3.91MB / 4.00MB, 19.5MB/s  [A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  334MB/s  
-New Data Upload               : 100%|██████████| 4.00MB / 4.00MB, 10.0MB/s  [A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[A
-
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            [A[AProcessing Files (1 / 1)      : 100%|██████████|  258MB /  258MB,  167MB/s  
-New Data Upload               : 100%|██████████| 4.00MB / 4.00MB, 5.00MB/s  
-  ...ainable_model.safetensors: 100%|██████████|  258MB /  258MB            
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17847.22it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 58394.83it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 909lkk2q
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_120740-909lkk2q
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-val-clip_similarity-seed4
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/909lkk2q
-wandb: updating run metadata; uploading summary
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         val/acc@1 ▁
-wandb:         val/acc@5 ▁
-wandb: val/auc_csp_style ▁
-wandb:          val/loss ▁
-wandb:    val/seen_acc@1 ▁
-wandb:    val/seen_acc@5 ▁
-wandb:  val/unseen_acc@1 ▁
-wandb:  val/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         val/acc@1 0.09098
-wandb:         val/acc@5 0.28378
-wandb: val/auc_csp_style 0.02317
-wandb:          val/loss 4.1428
-wandb:    val/seen_acc@1 0.1795
-wandb:    val/seen_acc@5 0.4295
-wandb:  val/unseen_acc@1 0.07194
-wandb:  val/unseen_acc@5 0.25245
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-val-clip_similarity-seed4 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/909lkk2q
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_120740-909lkk2q/logs
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s]Loading weights: 100%|██████████| 517/517 [00:00<00:00, 17921.12it/s]
-Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 74760.76it/s]
-/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/.venv/lib/python3.12/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
-  warnings.warn(
-wandb: [wandb.login()] Using explicit session credentials for https://api.wandb.ai.
-wandb: Appending key for api.wandb.ai to your netrc file: /users/zzhan360/.netrc
-wandb: Currently logged in as: ziqi_zhang2 (ziqi_zhang2-brown-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
-wandb: setting up run 1qtwkmcv
-wandb: Tracking run with wandb version 0.26.0
-wandb: Run data is saved locally in /oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/wandb/run-20260425_120903-1qtwkmcv
-wandb: Run `wandb offline` to turn off syncing.
-wandb: Syncing run eval-cspref_mit_states-test-clip_similarity-seed4
-wandb: ⭐️ View project at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: 🚀 View run at https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/1qtwkmcv
-wandb: updating run metadata
-wandb: uploading history steps 0-0, summary
-wandb: 
-wandb: Run history:
-wandb:         test/acc@1 ▁
-wandb:         test/acc@5 ▁
-wandb: test/auc_csp_style ▁
-wandb:          test/loss ▁
-wandb:    test/seen_acc@1 ▁
-wandb:    test/seen_acc@5 ▁
-wandb:  test/unseen_acc@1 ▁
-wandb:  test/unseen_acc@5 ▁
-wandb: 
-wandb: Run summary:
-wandb:         test/acc@1 0.08103
-wandb:         test/acc@5 0.28434
-wandb: test/auc_csp_style 0.01718
-wandb:          test/loss 4.16841
-wandb:    test/seen_acc@1 0.16807
-wandb:    test/seen_acc@5 0.4437
-wandb:  test/unseen_acc@1 0.06152
-wandb:  test/unseen_acc@5 0.24861
-wandb: 
-wandb: 🚀 View run eval-cspref_mit_states-test-clip_similarity-seed4 at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa/runs/1qtwkmcv
-wandb: ⭐️ View project at: https://wandb.ai/ziqi_zhang2-brown-university/csci1430-tc-ijepa
-wandb: Synced 4 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
-wandb: Find logs at: ./wandb/run-20260425_120903-1qtwkmcv/logs

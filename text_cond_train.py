@@ -999,6 +999,8 @@ def run_finetune(args: argparse.Namespace) -> None:
             chunk_size=int(args.text_bank_chunk_size),
         )
         model.train()
+        # Keep the frozen vision backbone in eval mode for deterministic features.
+        model.backbone.eval()
         pbar = tqdm(
             train_loader, desc=f"train ep {epoch+1}/{args.epochs}", file=sys.stdout
         )

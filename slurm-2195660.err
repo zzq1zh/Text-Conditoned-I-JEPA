@@ -1,1 +1,0 @@
-/var/spool/slurmd/job2195660/slurm_script: line 56: uv run python train_mit_states_clipstyle.py --vision-backbone dino-v3: command not found
