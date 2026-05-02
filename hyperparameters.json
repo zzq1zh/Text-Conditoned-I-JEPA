@@ -3,7 +3,7 @@
     "epochs": 20,
     "seed_list": "42",
     "batch_size": 128,
-    "num_workers": 8,
+    "num_workers": 4,
     "lr": 5e-5,
     "scheduler_type": "cosine",
     "warmup_ratio": 0.05,
@@ -34,7 +34,7 @@
     "cspref_mit_states": {
       "epochs": 20,
       "batch_size": 128,
-      "num_workers": 8,
+      "num_workers": 4,
       "lr": 5e-5,
       "scheduler_type": "cosine",
       "warmup_ratio": 0.05,
@@ -46,7 +46,7 @@
     "cspref_ut_zappos": {
       "epochs": 20,
       "batch_size": 128,
-      "num_workers": 8,
+      "num_workers": 4,
       "lr": 5e-5,
       "scheduler_type": "cosine",
       "warmup_ratio": 0.05,
@@ -58,7 +58,7 @@
     "cspref_cgqa": {
       "epochs": 20,
       "batch_size": 128,
-      "num_workers": 8,
+      "num_workers": 4,
       "lr": 5e-5,
       "scheduler_type": "cosine",
       "warmup_ratio": 0.05,

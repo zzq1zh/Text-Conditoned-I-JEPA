@@ -171,31 +171,31 @@ def main() -> None:
     eval_records: list[dict[str, Any]] = []
 
     # Print a full run configuration snapshot before training starts.
-    print("========== Run Configuration ==========")
-    print(f"vision_backbone: {args.vision_backbone}")
-    print(f"dataset: {args.dataset}")
-    print(f"dataset_tag: {dataset_tag}")
-    print(f"hyperparams_file: {args.hyperparams_file}")
-    print(f"epochs: {epochs}")
-    print(f"batch_size: {batch_size}")
-    print(f"lr: {lr}")
-    print(f"weight_decay: {weight_decay}")
-    print(f"fusion_type: {fusion_type}")
-    print(f"seed_list: {','.join(seeds)}")
-    print(f"no_wandb: {args.no_wandb}")
-    print(f"wandb_log_images: {args.wandb_log_images}")
-    print(f"wandb_max_images: {args.wandb_max_images}")
-    print(f"finetune_clip_text: {args.finetune_clip_text}")
-    print(f"plot_metric: {args.plot_metric}")
-    print(f"dry_run: {args.dry_run}")
+    print("========== Run Configuration ==========", flush=True)
+    print(f"vision_backbone: {args.vision_backbone}", flush=True)
+    print(f"dataset: {args.dataset}", flush=True)
+    print(f"dataset_tag: {dataset_tag}", flush=True)
+    print(f"hyperparams_file: {args.hyperparams_file}", flush=True)
+    print(f"epochs: {epochs}", flush=True)
+    print(f"batch_size: {batch_size}", flush=True)
+    print(f"lr: {lr}", flush=True)
+    print(f"weight_decay: {weight_decay}", flush=True)
+    print(f"fusion_type: {fusion_type}", flush=True)
+    print(f"seed_list: {','.join(seeds)}", flush=True)
+    print(f"no_wandb: {args.no_wandb}", flush=True)
+    print(f"wandb_log_images: {args.wandb_log_images}", flush=True)
+    print(f"wandb_max_images: {args.wandb_max_images}", flush=True)
+    print(f"finetune_clip_text: {args.finetune_clip_text}", flush=True)
+    print(f"plot_metric: {args.plot_metric}", flush=True)
+    print(f"dry_run: {args.dry_run}", flush=True)
     if extra_args:
-        print(f"extra_args: {' '.join(extra_args)}")
+        print(f"extra_args: {' '.join(extra_args)}", flush=True)
     else:
-        print("extra_args: <none>")
-    print(f"checkpoints_dir: {repo_root / 'checkpoints'}")
-    print(f"results_dir: {results_dir}")
-    print(f"timestamp: {ts}")
-    print("======================================")
+        print("extra_args: <none>", flush=True)
+    print(f"checkpoints_dir: {repo_root / 'checkpoints'}", flush=True)
+    print(f"results_dir: {results_dir}", flush=True)
+    print(f"timestamp: {ts}", flush=True)
+    print("======================================", flush=True)
 
     for seed in seeds:
         ckpt = f"checkpoints/{model_tag}_{dataset_tag}_clipstyle_s{seed}_{ts}.pt"
@@ -270,13 +270,13 @@ def main() -> None:
             str(test_json),
         ]
 
-        print(f"Running train command (seed={seed}):")
-        print(" ".join(train_cmd))
-        print(f"Checkpoint will be saved to: {ckpt}")
-        print(f"Running eval command (val):")
-        print(" ".join(eval_val_cmd))
-        print(f"Running eval command (test):")
-        print(" ".join(eval_test_cmd))
+        print(f"Running train command (seed={seed}):", flush=True)
+        print(" ".join(train_cmd), flush=True)
+        print(f"Checkpoint will be saved to: {ckpt}", flush=True)
+        print(f"Running eval command (val):", flush=True)
+        print(" ".join(eval_val_cmd), flush=True)
+        print(f"Running eval command (test):", flush=True)
+        print(" ".join(eval_test_cmd), flush=True)
 
         if args.dry_run:
             continue
