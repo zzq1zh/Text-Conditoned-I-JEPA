@@ -33,7 +33,7 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     p.add_argument("--dataset", default="cspref_mit_states")
     p.add_argument(
         "--seed-list",
-        default=os.environ.get("SEED_LIST", "0,1,2,3,4"),
+        default="",
         help="Comma-separated seeds.",
     )
     p.add_argument(
@@ -95,6 +95,16 @@ def _require_hparam(merged: dict[str, Any], key: str, cast: Any) -> Any:
     return cast(merged[key])
 
 
+def _seeds_from_hparam_value(v: Any) -> list[str]:
+    if isinstance(v, (list, tuple)):
+        out = [str(x).strip() for x in v if str(x).strip()]
+    else:
+        out = [x.strip() for x in str(v).split(",") if x.strip()]
+    if not out:
+        raise ValueError("seed_list in hyperparameters.json is empty.")
+    return out
+
+
 def _plot_seed_performance(
     records: list[dict[str, Any]],
     *,
@@ -149,10 +159,12 @@ def main() -> None:
     weight_decay = _require_hparam(merged, "weight_decay", float)
     fusion_type = _require_hparam(merged, "fusion_type", str)
 
-    seed_list_str = str(args.seed).strip() if str(args.seed).strip() else str(args.seed_list)
-    seeds = [s.strip() for s in seed_list_str.split(",") if s.strip()]
-    if not seeds:
-        seeds = ["0"]
+    if str(args.seed).strip():
+        seeds = [str(args.seed).strip()]
+    elif str(args.seed_list).strip():
+        seeds = [s.strip() for s in str(args.seed_list).split(",") if s.strip()]
+    else:
+        seeds = _seeds_from_hparam_value(_require_hparam(merged, "seed_list", lambda x: x))
 
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     model_tag = args.vision_backbone.replace("-", "")

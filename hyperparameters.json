@@ -1,6 +1,7 @@
 {
   "defaults": {
     "epochs": 20,
+    "seed_list": "42",
     "batch_size": 128,
     "num_workers": 8,
     "lr": 5e-5,
