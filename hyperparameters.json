@@ -52,7 +52,7 @@
       "warmup_ratio": 0.05,
       "min_lr_ratio": 0.1,
       "weight_decay": 1e-5,
-      "fusion_type": "linear",
+      "fusion_type": "clip_similarity",
       "text_template": "a photo of a {c}."
     },
     "cspref_cgqa": {
@@ -64,7 +64,7 @@
       "warmup_ratio": 0.05,
       "min_lr_ratio": 0.1,
       "weight_decay": 1e-5,
-      "fusion_type": "linear",
+      "fusion_type": "clip_similarity",
       "text_template": "a photo of a {c}."
     }
   }
