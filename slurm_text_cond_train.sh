@@ -31,14 +31,17 @@ source ~/.local/bin/env
 #   sbatch slurm_text_cond_train.sh two_fusions cspref_mit_states
 #   sbatch slurm_text_cond_train.sh csp_posttrain cspref_mit_states "" /path/to/base.ckpt
 #   sbatch slurm_text_cond_train.sh csp_posttrain cspref_mit_states my-wandb-project /path/to/base.ckpt vjepa
-#   FINETUNE_CSP_VOCAB=1 sbatch slurm_text_cond_train.sh ijepa cspref_mit_states "" /path/to/clipstyle_base.pt
-#     → appends --finetune-csp-vocab --base-checkpoint to run_text_cond_train (CSP bundle + csp_vocab eval)
+#   FINETUNE_CSP_VOCAB=1 sbatch slurm_text_cond_train.sh ijepa cspref_mit_states
+#     → appends --finetune-csp-vocab only (text_cond_train CSP path trains from scratch; 4th-arg BASE_CKPT unused here)
+#   FINETUNE_VISION_BACKBONE=1 sbatch slurm_text_cond_train.sh ijepa cspref_mit_states
+#     → appends --finetune-vision-backbone (with FINETUNE_CSP_VOCAB=1, unfreezes vision during CSP vocab training too)
 TARGET="${1:-${TRAIN_TARGET:-two_fusions}}"
 DATASET="${2:-${TRAIN_DATASET:-cspref_mit_states}}"
 W_PROJECT="${3:-${WANDB_PROJECT:-}}"
 BASE_CKPT="${4:-${CSP_BASE_CKPT:-}}"
 CSP_BACKBONE="${5:-ijepa}"
 FINETUNE_CSP_VOCAB="${FINETUNE_CSP_VOCAB:-0}"
+FINETUNE_VISION_BACKBONE="${FINETUNE_VISION_BACKBONE:-0}"
 
 case "${TARGET}" in
   two_fusions|two-stage|two_stage)
@@ -71,9 +74,6 @@ if [[ "${_fcv}" == "1" || "${_fcv}" == "true" || "${_fcv}" == "yes" || "${_fcv}"
   case "${TARGET}" in
     dinov3|dino|ijepa|i-jepa|vjepa|v-jepa)
       TRAIN_CMD+=(--finetune-csp-vocab)
-      if [[ -n "${BASE_CKPT}" ]]; then
-        TRAIN_CMD+=(--base-checkpoint "${BASE_CKPT}")
-      fi
       ;;
     *)
       echo "Warning: FINETUNE_CSP_VOCAB set but target '${TARGET}' is not dinov3/ijepa/vjepa; ignoring CSP finetune flags."
@@ -81,9 +81,22 @@ if [[ "${_fcv}" == "1" || "${_fcv}" == "true" || "${_fcv}" == "yes" || "${_fcv}"
   esac
 fi
 
+_fvb="$(echo "${FINETUNE_VISION_BACKBONE}" | tr '[:upper:]' '[:lower:]')"
+if [[ "${_fvb}" == "1" || "${_fvb}" == "true" || "${_fvb}" == "yes" || "${_fvb}" == "y" ]]; then
+  case "${TARGET}" in
+    dinov3|dino|ijepa|i-jepa|vjepa|v-jepa)
+      TRAIN_CMD+=(--finetune-vision-backbone)
+      ;;
+    *)
+      echo "Warning: FINETUNE_VISION_BACKBONE set but target '${TARGET}' is not dinov3/ijepa/vjepa; ignoring --finetune-vision-backbone."
+      ;;
+  esac
+fi
+
 echo "Training target: ${TARGET}"
 echo "Dataset: ${DATASET}"
 echo "FINETUNE_CSP_VOCAB: ${FINETUNE_CSP_VOCAB} (1/true/y adds --finetune-csp-vocab for ijepa/dinov3/vjepa)"
+echo "FINETUNE_VISION_BACKBONE: ${FINETUNE_VISION_BACKBONE} (1/true/y adds --finetune-vision-backbone for ijepa/dinov3/vjepa)"
 if [[ "${TARGET}" == "csp_posttrain" || "${TARGET}" == "csp-posttrain" || "${TARGET}" == "csp" ]]; then
   echo "CSP vision backbone: ${CSP_BACKBONE}"
   if [[ -n "${BASE_CKPT}" ]]; then

@@ -324,8 +324,8 @@ class FusionHead(nn.Module):
 
 class TextConditionedIJepa(nn.Module):
     """
-    Frozen I-JEPA trunk + trainable text conditioning + fusion scorer.
-    Visual features are detached so gradients do not flow into the I-JEPA weights.
+    Vision backbone (I-JEPA / ViT) optionally frozen + text conditioning + fusion scorer.
+    When the backbone is frozen, visual features use inference mode and are detached.
     """
 
     def __init__(
@@ -337,11 +337,14 @@ class TextConditionedIJepa(nn.Module):
         fusion_hidden: int = 512,
         fusion_type: str = "cross_attention",
         freeze_text_encoder: bool = True,
+        freeze_vision_backbone: bool = True,
     ) -> None:
         super().__init__()
+        self.freeze_vision_backbone = bool(freeze_vision_backbone)
         self.backbone = AutoModel.from_pretrained(ijepa_id)
-        freeze_backbone_(self.backbone)
-        self.backbone.eval()
+        if self.freeze_vision_backbone:
+            freeze_backbone_(self.backbone)
+            self.backbone.eval()
         vis_dim = int(self.backbone.config.hidden_size)
 
         self.text_cond = TextConditioningModule(
@@ -359,11 +362,15 @@ class TextConditionedIJepa(nn.Module):
         self.cond_dim = cond_dim
 
     def encode_image(self, pixel_values: torch.Tensor) -> torch.Tensor:
-        with torch.inference_mode():
-            enc = _forward_backbone(self.backbone, pixel_values)
-            seq = _extract_token_sequence(enc)
-            z = seq.float().mean(dim=1).detach()
-        return z
+        if self.freeze_vision_backbone:
+            with torch.inference_mode():
+                enc = _forward_backbone(self.backbone, pixel_values)
+                seq = _extract_token_sequence(enc)
+                z = seq.float().mean(dim=1).detach()
+            return z
+        enc = _forward_backbone(self.backbone, pixel_values)
+        seq = _extract_token_sequence(enc)
+        return seq.float().mean(dim=1)
 
     def encode_text(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         return self.text_cond(input_ids, attention_mask)

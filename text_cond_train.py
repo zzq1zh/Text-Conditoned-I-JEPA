@@ -60,8 +60,6 @@ from csp_eval import (  # noqa: E402
 )
 from csp_vocab_train import (  # noqa: E402
     CspCompositionVocab,
-    _default_save_from_base,
-    _load_base_checkpoint_if_any,
     _make_csp_eval_forward,
     build_csp_vocab_meta,
 )
@@ -164,6 +162,7 @@ HYPERPARAM_OVERRIDABLE_KEYS: frozenset[str] = frozenset(
         "max_grad_norm",
         "amp",
         "finetune_csp_vocab",
+        "finetune_vision_backbone",
         "base_checkpoint",
         "csp_context_length",
         "csp_vocab_init",
@@ -197,6 +196,7 @@ class TrainState:
     max_train_samples: int | None
     max_val_samples: int | None
     finetune_clip_text: bool
+    finetune_vision_backbone: bool
     use_amp: bool
     num_workers: int
     seed: int
@@ -568,6 +568,7 @@ def _hub_config_dict(
         "fusion_type": str(args.fusion_type),
         "loss_mode": "bidirectional_infonce",
         "finetune_clip_text": bool(args.finetune_clip_text),
+        "finetune_vision_backbone": bool(args.finetune_vision_backbone),
         "dataset": args.dataset,
         "text_template": args.text_template,
         "val_fraction": float(args.val_fraction),
@@ -643,6 +644,7 @@ def load_text_cond_trainable_from_hub(
         fusion_hidden=int(cfg["fusion_hidden"]),
         fusion_type=str(cfg.get("fusion_type", "cross_attention")),
         freeze_text_encoder=not bool(cfg.get("finetune_clip_text", False)),
+        freeze_vision_backbone=not bool(cfg.get("finetune_vision_backbone", False)),
     )
     model.to(device)
     sd = load_file(w_p)
@@ -696,6 +698,7 @@ def run_finetune(args: argparse.Namespace) -> None:
         fusion_hidden=args.fusion_hidden,
         fusion_type=args.fusion_type,
         freeze_text_encoder=not args.finetune_clip_text,
+        freeze_vision_backbone=not args.finetune_vision_backbone,
     )
     model.to(device)
 
@@ -790,6 +793,7 @@ def run_finetune(args: argparse.Namespace) -> None:
         max_train_samples=args.max_train_samples,
         max_val_samples=args.max_val_samples,
         finetune_clip_text=args.finetune_clip_text,
+        finetune_vision_backbone=bool(args.finetune_vision_backbone),
         use_amp=bool(device.type == "cuda" and args.amp),
         num_workers=args.num_workers,
         seed=args.seed,
@@ -843,8 +847,11 @@ def run_finetune(args: argparse.Namespace) -> None:
             chunk_size=int(args.text_bank_chunk_size),
         )
         model.train()
-        # Keep the frozen vision backbone in eval mode for deterministic features.
-        model.backbone.eval()
+        if args.finetune_vision_backbone:
+            model.backbone.train()
+        else:
+            # Frozen vision: eval mode for stable LayerNorm / dropout behavior without updates.
+            model.backbone.eval()
         pbar = tqdm(
             train_loader, desc=f"train ep {epoch+1}/{args.epochs}", file=sys.stdout
         )
@@ -997,13 +1004,28 @@ def _default_csp_vocab_train_wandb_run_name(args: argparse.Namespace) -> str:
     )
 
 
+def _default_csp_vocab_bundle_save_path(args: argparse.Namespace) -> str:
+    """Default ``--save`` when ``--finetune-csp-vocab`` and ``--save`` omitted."""
+    ds = str(args.dataset).replace("-", "_")
+    return f"csp_vocab_{ds}_s{args.seed}.pt"
+
+
 def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
     """
     Train compositional attr/object soft prompts (CSP-style vocab); vision + CLIP text encoder frozen.
 
+    Adapter, fusion, and CSP prompts are trained from their initializations (no ``--base-checkpoint``).
+
     Saves a bundle dict to ``--save``: ``csp_vocab``, ``adapter``, ``fusion``, ``meta``, ``args``
     (same layout as ``csp_vocab_train.py`` post-training artifact).
     """
+    if (args.base_checkpoint or "").strip():
+        raise ValueError(
+            "--base-checkpoint is not supported with text_cond_train.py --finetune-csp-vocab "
+            "(training always starts from pretrained vision + CLIP with freshly initialized "
+            "adapter, fusion, and compositional prompts). For base-initialized CSP post-training, "
+            "use csp_vocab_train.py."
+        )
     if (args.hub_model_id or "").strip():
         raise ValueError(
             "--hub-model-id is not supported with --finetune-csp-vocab; save a bundle with --save instead."
@@ -1078,11 +1100,15 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
         fusion_hidden=args.fusion_hidden,
         fusion_type=args.fusion_type,
         freeze_text_encoder=True,
+        freeze_vision_backbone=not args.finetune_vision_backbone,
     ).to(device)
-    _load_base_checkpoint_if_any(model, args.base_checkpoint)
-    model.backbone.eval()
-    for p in model.backbone.parameters():
-        p.requires_grad = False
+    if args.finetune_vision_backbone:
+        for p in model.backbone.parameters():
+            p.requires_grad = True
+    else:
+        model.backbone.eval()
+        for p in model.backbone.parameters():
+            p.requires_grad = False
     model.text_cond.text_encoder.eval()
     for p in model.text_cond.text_encoder.parameters():
         p.requires_grad = False
@@ -1116,10 +1142,13 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
 
     trainable_txt = [p for p in model.text_cond.adapter.parameters() if p.requires_grad]
     trainable_fusion = [p for p in model.fusion.parameters() if p.requires_grad]
-    params = [csp_vocab.attr_prompt, csp_vocab.obj_prompt, *trainable_txt, *trainable_fusion]
+    trainable_bb: list[torch.nn.Parameter] = []
+    if args.finetune_vision_backbone:
+        trainable_bb = [p for p in model.backbone.parameters() if p.requires_grad]
+    params = [csp_vocab.attr_prompt, csp_vocab.obj_prompt, *trainable_txt, *trainable_fusion, *trainable_bb]
+    vis_note = "vision backbone trainable" if args.finetune_vision_backbone else "vision backbone frozen"
     print(
-        "CSP vocab: training attr/obj prompts + text adapter + fusion "
-        "(vision backbone + CLIP text encoder frozen).",
+        f"CSP vocab: training attr/obj prompts + text adapter + fusion; {vis_note}; CLIP text encoder frozen.",
         flush=True,
     )
     opt = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
@@ -1172,6 +1201,7 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
         max_train_samples=args.max_train_samples,
         max_val_samples=args.max_val_samples,
         finetune_clip_text=False,
+        finetune_vision_backbone=bool(args.finetune_vision_backbone),
         use_amp=bool(device.type == "cuda" and args.amp),
         num_workers=args.num_workers,
         seed=args.seed,
@@ -1230,7 +1260,10 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
 
     try:
         for epoch in range(args.epochs):
-            model.backbone.eval()
+            if args.finetune_vision_backbone:
+                model.backbone.train()
+            else:
+                model.backbone.eval()
             model.fusion.train()
             csp_vocab.train()
             # Same modules as model.text_cond.{text_encoder,adapter}; train() above flips them—re-apply.
@@ -1472,6 +1505,7 @@ def run_eval_only(args: argparse.Namespace) -> None:
             fusion_hidden=args.fusion_hidden,
             fusion_type=args.fusion_type,
             freeze_text_encoder=not args.finetune_clip_text,
+            freeze_vision_backbone=not args.finetune_vision_backbone,
         )
         model.to(device)
         if ckpt:
@@ -1720,21 +1754,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Unfreeze CLIP text encoder in addition to adapter+fusion (heavier, needs more VRAM)",
     )
     p.add_argument(
+        "--finetune-vision-backbone",
+        action="store_true",
+        help="Allow gradients into the vision backbone (I-JEPA / ViT) in addition to other trainable parts.",
+    )
+    p.add_argument(
         "--finetune-csp-vocab",
         action="store_true",
         help=(
-            "Train CSP compositional soft prompts (attr/object) plus the text adapter and fusion head; "
-            "keeps the vision backbone and CLIP text encoder frozen. Saves a bundle {csp_vocab, meta, args} "
-            "to --save (same format as csp_vocab_train.py). Use --base-checkpoint to load pretrained "
-            "adapter+fusion weights."
+            "Train CSP compositional soft prompts (attr/object) plus the text adapter and fusion head "
+            "from scratch (pretrained vision + CLIP only). Vision backbone and CLIP text encoder are "
+            "frozen by default (use --finetune-vision-backbone to update vision). Saves a bundle "
+            "{csp_vocab, adapter, fusion, meta, args} to --save (same format as csp_vocab_train.py). "
+            "Not supported: --base-checkpoint (use csp_vocab_train.py if you need base ckpt init)."
         ),
     )
     p.add_argument(
         "--base-checkpoint",
         default="",
         help=(
-            "Optional TextConditionedIJepa state_dict for --finetune-csp-vocab (strict=False; "
-            "same semantics as csp_vocab_train --base-checkpoint)."
+            "Optional TextConditionedIJepa state_dict for workflows that still use it; "
+            "disallowed with --finetune-csp-vocab (raises if set). See csp_vocab_train.py --base-checkpoint "
+            "for CSP-style training from a clip-style base."
         ),
     )
     p.add_argument(
@@ -1887,7 +1928,7 @@ def main() -> None:
         run_eval_only(args)
     elif args.finetune_csp_vocab:
         if not _arg_was_explicit(argv, "save"):
-            args.save = _default_save_from_base(args.base_checkpoint)
+            args.save = _default_csp_vocab_bundle_save_path(args)
         run_finetune_csp_vocab(args)
     else:
         run_finetune(args)

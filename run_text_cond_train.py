@@ -60,6 +60,11 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     )
     p.add_argument("--finetune-clip-text", action="store_true")
     p.add_argument(
+        "--finetune-vision-backbone",
+        action="store_true",
+        help="Forward to text_cond_train.py to train the vision backbone.",
+    )
+    p.add_argument(
         "--finetune-csp-vocab",
         action="store_true",
         help="Run text_cond_train.py --finetune-csp-vocab; save CSP bundle; eval via csp_vocab_train.py --eval-only.",
@@ -213,6 +218,7 @@ def main() -> None:
     print(f"wandb_log_images: {args.wandb_log_images}", flush=True)
     print(f"wandb_max_images: {args.wandb_max_images}", flush=True)
     print(f"finetune_clip_text: {args.finetune_clip_text}", flush=True)
+    print(f"finetune_vision_backbone: {args.finetune_vision_backbone}", flush=True)
     print(f"finetune_csp_vocab: {args.finetune_csp_vocab}", flush=True)
     print(f"base_checkpoint_template: {base_ckpt_tpl or '<none>'}", flush=True)
     print(f"plot_metric: {args.plot_metric}", flush=True)
@@ -258,14 +264,14 @@ def main() -> None:
         ]
         if args.finetune_csp_vocab:
             train_cmd.append("--finetune-csp-vocab")
-            if base_ckpt:
-                train_cmd.extend(["--base-checkpoint", base_ckpt])
         if args.no_wandb:
             train_cmd.append("--no-wandb")
         if args.wandb_log_images:
             train_cmd.extend(["--wandb-log-images", "--wandb-max-images", str(args.wandb_max_images)])
         if args.finetune_clip_text:
             train_cmd.append("--finetune-clip-text")
+        if args.finetune_vision_backbone:
+            train_cmd.append("--finetune-vision-backbone")
         if extra_args:
             train_cmd.extend(extra_args)
 
@@ -285,8 +291,6 @@ def main() -> None:
                 "--checkpoint",
                 ckpt,
             ]
-            if base_ckpt:
-                base_eval_cmd.extend(["--base-checkpoint", base_ckpt])
         else:
             base_eval_cmd = [
                 sys.executable,
