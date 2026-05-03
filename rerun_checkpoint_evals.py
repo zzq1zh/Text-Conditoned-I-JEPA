@@ -6,11 +6,18 @@ Re-run val + test ``--eval-only`` for every checkpoint under a path list or dire
   ``csp_vocab_train.py --eval-only``.
 - Otherwise → ``text_cond_train.py --eval-only`` (plain ``state_dict``).
 
-For CSP vocab bundles, ``--dataset``, ``--vision-backbone``, and ``--seed`` default from
-the saved ``bundle['args']`` when omitted. For text-cond checkpoints you should pass them
-explicitly (or only ``--seed`` if parseable from the filename ``*_s<seed>_*.pt``).
+For checkpoints saved by ``run_text_cond_train.py`` / ``run_csp_vocab_train.py``, stems are parsed when flags are omitted:
+
+- ``{backbone}_{dataset_tag}_clipstyle_s{seed}_{YYYYMMDD-HHMMSS}`` (text-cond)
+- ``csp_vocab_{backbone}_{dataset_tag}_s{seed}_{YYYYMMDD-HHMMSS}`` (CSP vocab bundle)
+
+``dataset_tag`` uses underscores (e.g. ``cspref_cgqa``), matching ``--dataset``.
+Explicit ``--dataset`` / ``--vision-backbone`` / ``--seed`` override parsed and bundle values.
 
 Examples::
+
+    uv run python rerun_checkpoint_evals.py \\
+      checkpoints/dinov3_cspref_cgqa_clipstyle_s42_20260502-162807.pt
 
     uv run python rerun_checkpoint_evals.py checkpoints/*.pt \\
       --vision-backbone ijepa --dataset cspref_mit_states --seed 42
@@ -18,6 +25,10 @@ Examples::
     uv run python rerun_checkpoint_evals.py checkpoints/ --glob 'csp_vocab_*.pt'
 
     uv run python rerun_checkpoint_evals.py checkpoints/ --recurse
+
+Val/test metrics JSON go under ``results/`` (see ``--out-dir``). Unless ``--no-summarize`` is set,
+``summarize_eval_metrics.py`` is run on each metrics directory that received JSON files, writing
+``eval_metrics_raw.csv``, ``eval_metrics_summary.*``, and ``eval_plots/`` alongside them.
 """
 
 from __future__ import annotations
@@ -32,6 +43,39 @@ from pathlib import Path
 from typing import Any
 
 import torch
+
+
+_BACKBONE = r"(?:ijepa|vjepa|dinov3)"
+# Saved by run_text_cond_train: {model_tag}_{dataset_tag}_clipstyle_s{seed}_{ts}
+_RE_CLIPSTYLE_STRICT = re.compile(
+    rf"^({_BACKBONE})_(.+)_clipstyle_s(\d+)_([0-9]{{8}}-[0-9]{{6}})$"
+)
+_RE_CLIPSTYLE_LOOSE = re.compile(rf"^({_BACKBONE})_(.+)_clipstyle_s(\d+)_(.+)$")
+# Saved by run_csp_vocab_train: csp_vocab_{model_tag}_{dataset_tag}_s{seed}_{ts}
+_RE_CSPV_STRICT = re.compile(
+    rf"^csp_vocab_({_BACKBONE})_(.+)_s(\d+)_([0-9]{{8}}-[0-9]{{6}})$"
+)
+_RE_CSPV_LOOSE = re.compile(rf"^csp_vocab_({_BACKBONE})_(.+)_s(\d+)_(.+)$")
+
+
+def _parse_run_checkpoint_stem(path: Path, kind: str) -> dict[str, str | int] | None:
+    """
+    Parse ``run_*_train.py`` checkpoint stem into vision_backbone / dataset / seed.
+
+    ``kind`` is ``text_cond`` or ``csp_vocab`` from :func:`_detect_kind` (file contents).
+    """
+    stem = path.stem
+    if kind == "csp_vocab":
+        m = _RE_CSPV_STRICT.match(stem) or _RE_CSPV_LOOSE.match(stem)
+    else:
+        m = _RE_CLIPSTYLE_STRICT.match(stem) or _RE_CLIPSTYLE_LOOSE.match(stem)
+    if not m:
+        return None
+    return {
+        "vision_backbone": m.group(1),
+        "dataset": m.group(2),
+        "seed": int(m.group(3)),
+    }
 
 
 def _detect_kind(path: Path) -> str:
@@ -85,6 +129,34 @@ def _collect_files(paths: list[Path], *, glob_pat: str | None, recurse: bool) ->
     return sorted(uniq)
 
 
+def _run_summarize(repo_root: Path, metrics_dir: Path) -> None:
+    """Run ``summarize_eval_metrics.py`` on one directory of ``*.json`` metrics."""
+    metrics_dir = metrics_dir.resolve()
+    json_files = list(metrics_dir.glob("*.json"))
+    if not json_files:
+        print(f"[summarize] skip (no *.json in {metrics_dir})", flush=True)
+        return
+    summarize_script = repo_root / "summarize_eval_metrics.py"
+    if not summarize_script.is_file():
+        raise FileNotFoundError(f"Missing {summarize_script}")
+    cmd = [
+        sys.executable,
+        str(summarize_script),
+        "--metrics-dir",
+        str(metrics_dir),
+        "--raw-csv",
+        str(metrics_dir / "eval_metrics_raw.csv"),
+        "--summary-csv",
+        str(metrics_dir / "eval_metrics_summary.csv"),
+        "--summary-json",
+        str(metrics_dir / "eval_metrics_summary.json"),
+        "--plot-dir",
+        str(metrics_dir / "eval_plots"),
+    ]
+    print(f"\n[summarize] {' '.join(cmd)}", flush=True)
+    subprocess.run(cmd, check=True, cwd=str(repo_root))
+
+
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("Examples::", 1)[0].strip())
     p.add_argument(
@@ -136,6 +208,11 @@ def _parse_args() -> argparse.Namespace:
         metavar="ARG",
         help="Extra argv token for each eval (repeatable), e.g. --forward --finetune-clip-text",
     )
+    p.add_argument(
+        "--no-summarize",
+        action="store_true",
+        help="Do not run summarize_eval_metrics.py after eval (default: run it per results dir).",
+    )
     return p.parse_args()
 
 
@@ -159,31 +236,43 @@ def main() -> None:
 
     use_wandb = bool(args.wandb)
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    metrics_dirs: set[Path] = set()
 
     for ck in files:
         kind = _detect_kind(ck)
         script = "csp_vocab_train.py" if kind == "csp_vocab" else "text_cond_train.py"
 
         bd = _bundle_defaults(ck) if kind == "csp_vocab" else {}
+        parsed = _parse_run_checkpoint_stem(ck, kind)
+
         dataset = (args.dataset or "").strip() or str(bd.get("dataset") or "").strip()
+        if not dataset and parsed is not None:
+            dataset = str(parsed["dataset"])
+
         backbone = (args.vision_backbone or "").strip() or str(
             bd.get("vision_backbone") or ""
         ).strip()
+        if not backbone and parsed is not None:
+            backbone = str(parsed["vision_backbone"])
+
         seed: int | None
         if args.seed >= 0:
             seed = int(args.seed)
         elif bd.get("seed") is not None:
             seed = int(bd["seed"])
+        elif parsed is not None:
+            seed = int(parsed["seed"])
         else:
             seed = _parse_seed_from_name(ck)
 
         if not dataset:
-            raise SystemExit(f"{ck}: set --dataset (not in bundle args).")
+            raise SystemExit(f"{ck}: set --dataset (not in bundle / launcher filename).")
         if not backbone:
-            raise SystemExit(f"{ck}: set --vision-backbone (not in bundle args).")
+            raise SystemExit(f"{ck}: set --vision-backbone (not in bundle / launcher filename).")
         if seed is None:
             raise SystemExit(
-                f"{ck}: could not resolve seed; pass --seed or use a filename like *_s42_*"
+                f"{ck}: could not resolve seed; pass --seed or use a launcher filename "
+                f"(e.g. …_clipstyle_s42_* or csp_vocab_*_s42_*)."
             )
 
         dataset_tag = dataset.replace("-", "_")
@@ -193,6 +282,7 @@ def main() -> None:
         else:
             results_dir = repo_root / "results" / f"rerun_evals_{dataset_tag}_{kind_tag}"
         results_dir.mkdir(parents=True, exist_ok=True)
+        metrics_dirs.add(results_dir.resolve())
 
         base = [
             sys.executable,
@@ -247,6 +337,10 @@ def main() -> None:
 
         subprocess.run(val_cmd, check=True, cwd=str(repo_root))
         subprocess.run(test_cmd, check=True, cwd=str(repo_root))
+
+    if not args.dry_run and not args.no_summarize:
+        for d in sorted(metrics_dirs, key=str):
+            _run_summarize(repo_root, d)
 
 
 if __name__ == "__main__":
