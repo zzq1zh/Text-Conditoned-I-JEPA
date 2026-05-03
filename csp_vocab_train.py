@@ -30,7 +30,6 @@ project_env.load_project_env()
 
 from main import (  # noqa: E402
     DEFAULT_CLIP_TEXT_ID,
-    DEFAULT_IJEPA_ID,
     DEFAULT_PROMPT_TEMPLATE,
     TextConditionedIJepa,
     VISION_BACKBONE_PRESETS,
@@ -682,9 +681,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--vision-backbone",
         default="ijepa",
         choices=tuple(sorted(VISION_BACKBONE_PRESETS.keys())),
-        help="Vision backbone preset key used to resolve --ijepa.",
+        help="Preset HF vision model when --ijepa is empty (must match the base checkpoint).",
     )
-    p.add_argument("--ijepa", default=DEFAULT_IJEPA_ID)
+    p.add_argument(
+        "--ijepa",
+        default="",
+        help="Explicit HuggingFace vision backbone id. Empty (default) uses --vision-backbone preset.",
+    )
     p.add_argument("--clip", default=DEFAULT_CLIP_TEXT_ID)
     p.add_argument("--val-fraction", type=float, default=0.1)
     p.add_argument("--split-seed", type=int, default=0)
