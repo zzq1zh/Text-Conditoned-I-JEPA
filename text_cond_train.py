@@ -1231,10 +1231,9 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
     try:
         for epoch in range(args.epochs):
             model.backbone.eval()
-            model.text_cond.text_encoder.eval()
-            model.text_cond.adapter.train()
             model.fusion.train()
             csp_vocab.train()
+            # Same modules as model.text_cond.{text_encoder,adapter}; train() above flips them—re-apply.
             csp_vocab.text_encoder.eval()
             csp_vocab.adapter.train()
             pbar = tqdm(

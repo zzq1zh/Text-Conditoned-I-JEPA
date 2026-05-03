@@ -60,6 +60,16 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     )
     p.add_argument("--finetune-clip-text", action="store_true")
     p.add_argument(
+        "--finetune-csp-vocab",
+        action="store_true",
+        help="Run text_cond_train.py --finetune-csp-vocab; save CSP bundle; eval via csp_vocab_train.py --eval-only.",
+    )
+    p.add_argument(
+        "--base-checkpoint",
+        default="",
+        help="For --finetune-csp-vocab: init TextConditionedIJepa (strict=False). Supports '{seed}' template.",
+    )
+    p.add_argument(
         "--plot-metric",
         default="top1",
         help="Metric key in eval JSON for seed-performance line plot (e.g. top1, top5, auc_csp_style).",
@@ -93,6 +103,13 @@ def _require_hparam(merged: dict[str, Any], key: str, cast: Any) -> Any:
             f"the selected model/dataset combination."
         )
     return cast(merged[key])
+
+
+def _resolve_base_checkpoint(template: str, seed: str) -> str:
+    t = str(template or "").strip()
+    if not t:
+        return ""
+    return t.format(seed=seed) if "{seed}" in t else t
 
 
 def _seeds_from_hparam_value(v: Any) -> list[str]:
@@ -141,12 +158,17 @@ def _plot_seed_performance(
 
 def main() -> None:
     args, extra_args = _parse_args()
+    if args.finetune_csp_vocab and args.finetune_clip_text:
+        raise ValueError("Cannot combine --finetune-csp-vocab with --finetune-clip-text.")
 
     repo_root = Path(__file__).resolve().parent
     os.chdir(repo_root)
     (repo_root / "checkpoints").mkdir(exist_ok=True)
     dataset_tag = args.dataset.replace("-", "_")
-    results_dir = repo_root / "results" / f"{dataset_tag}_clipstyle"
+    if args.finetune_csp_vocab:
+        results_dir = repo_root / "results" / f"{dataset_tag}_finetune_csp_vocab"
+    else:
+        results_dir = repo_root / "results" / f"{dataset_tag}_clipstyle"
     results_dir.mkdir(parents=True, exist_ok=True)
 
     hp_cfg = _load_hparams(repo_root / args.hyperparams_file)
@@ -170,6 +192,9 @@ def main() -> None:
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     model_tag = args.vision_backbone.replace("-", "")
     eval_records: list[dict[str, Any]] = []
+    base_ckpt_tpl = (args.base_checkpoint or "").strip() or str(
+        merged.get("base_checkpoint") or merged.get("csp_base_checkpoint") or ""
+    ).strip()
 
     # Print a full run configuration snapshot before training starts.
     print("========== Run Configuration ==========", flush=True)
@@ -188,6 +213,8 @@ def main() -> None:
     print(f"wandb_log_images: {args.wandb_log_images}", flush=True)
     print(f"wandb_max_images: {args.wandb_max_images}", flush=True)
     print(f"finetune_clip_text: {args.finetune_clip_text}", flush=True)
+    print(f"finetune_csp_vocab: {args.finetune_csp_vocab}", flush=True)
+    print(f"base_checkpoint_template: {base_ckpt_tpl or '<none>'}", flush=True)
     print(f"plot_metric: {args.plot_metric}", flush=True)
     print(f"dry_run: {args.dry_run}", flush=True)
     if extra_args:
@@ -200,7 +227,11 @@ def main() -> None:
     print("======================================", flush=True)
 
     for seed in seeds:
-        ckpt = f"checkpoints/{model_tag}_{dataset_tag}_clipstyle_s{seed}_{ts}.pt"
+        base_ckpt = _resolve_base_checkpoint(base_ckpt_tpl, seed)
+        if args.finetune_csp_vocab:
+            ckpt = f"checkpoints/csp_vocab_{model_tag}_{dataset_tag}_s{seed}_{ts}.pt"
+        else:
+            ckpt = f"checkpoints/{model_tag}_{dataset_tag}_clipstyle_s{seed}_{ts}.pt"
         train_cmd = [
             sys.executable,
             "text_cond_train.py",
@@ -225,6 +256,10 @@ def main() -> None:
             "--save",
             ckpt,
         ]
+        if args.finetune_csp_vocab:
+            train_cmd.append("--finetune-csp-vocab")
+            if base_ckpt:
+                train_cmd.extend(["--base-checkpoint", base_ckpt])
         if args.no_wandb:
             train_cmd.append("--no-wandb")
         if args.wandb_log_images:
@@ -234,21 +269,40 @@ def main() -> None:
         if extra_args:
             train_cmd.extend(extra_args)
 
-        base_eval_cmd = [
-            sys.executable,
-            "text_cond_train.py",
-            "--eval-only",
-            "--vision-backbone",
-            args.vision_backbone,
-            "--dataset",
-            args.dataset,
-            "--seed",
-            str(seed),
-            "--hyperparams-file",
-            args.hyperparams_file,
-            "--checkpoint",
-            ckpt,
-        ]
+        if args.finetune_csp_vocab:
+            base_eval_cmd = [
+                sys.executable,
+                "csp_vocab_train.py",
+                "--eval-only",
+                "--vision-backbone",
+                args.vision_backbone,
+                "--dataset",
+                args.dataset,
+                "--seed",
+                str(seed),
+                "--hyperparams-file",
+                args.hyperparams_file,
+                "--checkpoint",
+                ckpt,
+            ]
+            if base_ckpt:
+                base_eval_cmd.extend(["--base-checkpoint", base_ckpt])
+        else:
+            base_eval_cmd = [
+                sys.executable,
+                "text_cond_train.py",
+                "--eval-only",
+                "--vision-backbone",
+                args.vision_backbone,
+                "--dataset",
+                args.dataset,
+                "--seed",
+                str(seed),
+                "--hyperparams-file",
+                args.hyperparams_file,
+                "--checkpoint",
+                ckpt,
+            ]
         if args.no_wandb:
             base_eval_cmd.append("--no-wandb")
         if args.wandb_log_images:
