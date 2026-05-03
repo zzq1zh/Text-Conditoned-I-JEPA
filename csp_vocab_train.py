@@ -290,6 +290,46 @@ def build_csp_vocab_meta(class_names: list[str], *, pair_separator: str = " ") -
     )
 
 
+def _clip_text_embeds_from_inputs_embeds(
+    clip_text_with_proj: nn.Module,
+    inputs_embeds: torch.Tensor,
+    attention_mask: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Run CLIP text tower on pre-built ``inputs_embeds`` (BOS + soft prompts + EOS).
+
+    Recent ``transformers`` builds reject ``CLIPTextModelWithProjection(..., inputs_embeds=)``
+    because the inner ``CLIPTextModel`` raises when ``input_ids`` is omitted. This path
+    mirrors ``CLIPTextModel.forward`` but starts from ``CLIPTextEmbeddings(inputs_embeds=...)``.
+    The composed sequence ends with the EOS patch, so we pool the **last** token (same as
+    one-token EOS at the end of a short prompt).
+    """
+    tm = clip_text_with_proj.text_model
+    hidden = tm.embeddings(inputs_embeds=inputs_embeds)
+    try:
+        from transformers.masking_utils import create_causal_mask
+    except ImportError as exc:
+        raise RuntimeError(
+            "CSP compose() needs ``transformers.masking_utils.create_causal_mask`` "
+            "(upgrade transformers) when the CLIP wrapper no longer accepts inputs_embeds-only "
+            f"calls: {exc}"
+        ) from exc
+    causal_attention_mask = create_causal_mask(
+        config=tm.config,
+        inputs_embeds=hidden,
+        attention_mask=attention_mask,
+        past_key_values=None,
+    )
+    encoder_outputs = tm.encoder(
+        inputs_embeds=hidden,
+        attention_mask=causal_attention_mask,
+        is_causal=True,
+    )
+    last_hidden_state = tm.final_layer_norm(encoder_outputs.last_hidden_state)
+    pooled_output = last_hidden_state[:, -1, :]
+    return clip_text_with_proj.text_projection(pooled_output)
+
+
 class CspCompositionVocab(nn.Module):
     def __init__(
         self,
@@ -361,12 +401,20 @@ class CspCompositionVocab(nn.Module):
         attention_mask = torch.ones(
             (bsz, inputs_embeds.shape[1]), dtype=torch.long, device=inputs_embeds.device
         )
-        out = self.text_encoder(
-            inputs_embeds=inputs_embeds,
-            attention_mask=attention_mask,
-            return_dict=True,
-        )
-        text_embeds = out.text_embeds
+        try:
+            out = self.text_encoder(
+                inputs_embeds=inputs_embeds,
+                attention_mask=attention_mask,
+                return_dict=True,
+            )
+            text_embeds = out.text_embeds
+        except ValueError as err:
+            # transformers >= ~4.48: CLIPTextModel requires input_ids; inputs_embeds-only fails.
+            if "input_ids" not in str(err).lower():
+                raise
+            text_embeds = _clip_text_embeds_from_inputs_embeds(
+                self.text_encoder, inputs_embeds, attention_mask
+            )
         if text_embeds is None:
             raise RuntimeError("CLIPTextModelWithProjection did not return text_embeds")
         cond = self.adapter(text_embeds)
