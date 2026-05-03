@@ -81,6 +81,15 @@ def _msamples(x: int) -> int | None:
     return x if x and x > 0 else None
 
 
+def _default_save_from_base(base_checkpoint: str) -> str:
+    """``path/model.pt`` -> ``path/model_csp_vocab.pt``; no base -> ``csp_vocab_posttrain.pt``."""
+    b = (base_checkpoint or "").strip()
+    if not b:
+        return "csp_vocab_posttrain.pt"
+    p = Path(b)
+    return str(p.with_name(f"{p.stem}_csp_vocab{p.suffix}"))
+
+
 def _arg_was_explicit(argv: list[str], key: str) -> bool:
     opt = f"--{key.replace('_', '-')}"
     for t in argv:
@@ -664,7 +673,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Standalone CSP vocab post-training (freeze base model, train compositional vocab).",
         epilog=(
             "Example: uv run python csp_vocab_train.py "
-            "--dataset cspref_mit_states --base-checkpoint runs/base.pt --save runs/csp_vocab.pt"
+            "--dataset cspref_mit_states --base-checkpoint runs/base.pt  "
+            "(default save: runs/base_csp_vocab.pt)"
         ),
     )
     p.add_argument("--dataset", default="cspref_mit_states", choices=list_vision_dataset_keys())
@@ -718,7 +728,16 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Optional pretrained TextConditionedIJepa state_dict for post-training initialization.",
     )
-    p.add_argument("--save", type=str, default="csp_vocab_posttrain.pt")
+    p.add_argument(
+        "--save",
+        type=str,
+        default=None,
+        help=(
+            "Output path for the CSP vocab artifact (dict with csp_vocab / meta / args). "
+            "Default when omitted: next to --base-checkpoint as <stem>_csp_vocab.pt, "
+            "or csp_vocab_posttrain.pt if no base checkpoint."
+        ),
+    )
     p.add_argument("--hyperparams-file", type=str, default=DEFAULT_HYPERPARAMS_FILE)
     return p
 
@@ -728,6 +747,8 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     apply_hyperparams_from_file(args, argv)
+    if not _arg_was_explicit(argv, "save"):
+        args.save = _default_save_from_base(args.base_checkpoint)
     run_post_training(args)
 
 
