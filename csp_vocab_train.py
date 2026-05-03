@@ -779,6 +779,11 @@ def run_post_training(args: argparse.Namespace) -> None:
     try:
         for epoch in range(int(args.epochs)):
             csp_vocab.train()
+            # ``text_encoder`` / ``adapter`` are registered submodules of ``csp_vocab``; a bare
+            # ``.train()`` would flip them out of eval (Dropout etc.) even though only soft prompts
+            # get gradients. They stay frozen; keep them in eval like ``model``.
+            csp_vocab.text_encoder.eval()
+            csp_vocab.adapter.eval()
             pbar = tqdm(
                 train_loader,
                 desc=f"csp post-train ep {epoch + 1}/{args.epochs}",
