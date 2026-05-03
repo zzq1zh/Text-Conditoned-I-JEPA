@@ -605,6 +605,246 @@ def _make_csp_eval_forward(
     return forward_batch
 
 
+_CSP_EVAL_CLI_RESTORE_KEYS: frozenset[str] = frozenset(
+    {
+        "eval_only",
+        "checkpoint",
+        "eval_split",
+        "metrics_json",
+        "experiment_tag",
+        "max_eval_samples",
+        "seed",
+        "device",
+        "cpu",
+        "no_wandb",
+        "wandb_project",
+        "wandb_entity",
+        "wandb_run_name",
+        "wandb_log_images",
+        "wandb_image_log_interval",
+        "wandb_max_images",
+        "hyperparams_file",
+        "batch_size",
+        "num_workers",
+        "amp",
+        "log_interval",
+    }
+)
+
+
+def _meta_from_bundle(meta_d: dict[str, Any]) -> CspVocabMeta:
+    return CspVocabMeta(
+        attrs=list(meta_d["attrs"]),
+        objs=list(meta_d["objs"]),
+        pairs=list(meta_d["pairs"]),
+        pair_attr_idx=meta_d["pair_attr_idx"],
+        pair_obj_idx=meta_d["pair_obj_idx"],
+        pair_separator=str(meta_d.get("pair_separator", " ")),
+    )
+
+
+def run_csp_eval_only(args: argparse.Namespace) -> None:
+    """Load a saved CSP vocab artifact and run clip-style metrics on val or test."""
+    cli_snap = argparse.Namespace(**vars(args))
+    artifact_path = (args.checkpoint or "").strip()
+    if not artifact_path:
+        raise ValueError("CSP --eval-only requires --checkpoint (path to the saved .pt artifact).")
+
+    bundle = torch.load(artifact_path, map_location="cpu", weights_only=True)
+    if not isinstance(bundle, dict) or "csp_vocab" not in bundle or "meta" not in bundle:
+        raise TypeError(
+            f"--checkpoint must be a CSP vocab bundle dict with 'csp_vocab' and 'meta'; got {type(bundle).__name__}"
+        )
+    saved_args = bundle.get("args") or {}
+    if not isinstance(saved_args, dict):
+        raise TypeError(f"bundle['args'] must be a dict, got {type(saved_args).__name__}")
+
+    for k, v in saved_args.items():
+        if hasattr(args, k):
+            setattr(args, k, v)
+    for k in _CSP_EVAL_CLI_RESTORE_KEYS:
+        if hasattr(args, k) and hasattr(cli_snap, k):
+            setattr(args, k, getattr(cli_snap, k))
+    args.checkpoint = artifact_path
+
+    set_seed(int(args.seed))
+    args.ijepa = resolve_vision_model_id(args.vision_backbone, args.ijepa)
+    device = _resolve_train_device(args)
+    if device.type == "cuda":
+        print(f"Eval on GPU: {torch.cuda.get_device_name(device.index or 0)}", flush=True)
+    else:
+        print("Eval on CPU.", flush=True)
+
+    csp_meta = _meta_from_bundle(bundle["meta"])
+    me = _msamples(int(args.max_eval_samples))
+    tvt = load_vision_train_val_test_specs(
+        args.dataset,
+        val_fraction=float(args.val_fraction),
+        split_seed=int(args.split_seed),
+        max_train_samples=None,
+        max_val_samples=me if args.eval_split == "val" else None,
+        max_test_samples=me if args.eval_split == "test" else None,
+    )
+    if list(tvt.train.class_names) != list(csp_meta.pairs):
+        raise ValueError(
+            "Training class order in the checkpoint meta does not match the current dataset "
+            f"(n_checkpoint={len(csp_meta.pairs)} vs n_dataset={len(tvt.train.class_names)}). "
+            "Use the same --dataset and split settings as training."
+        )
+
+    if args.eval_split == "val":
+        spec = tvt.val
+    else:
+        spec = tvt.test
+    eval_ds = HfPilImageDataset(spec.dataset, spec.image_column, spec.label_key)
+    if len(eval_ds) == 0:
+        raise RuntimeError("Eval split is empty. Check --max-eval-samples and data config.")
+
+    n_classes = len(tvt.train.class_names)
+    im_proc = load_vision_processor(args.ijepa)
+    collate = make_collate_fn(im_proc)
+    loader = DataLoader(
+        eval_ds,
+        batch_size=int(args.batch_size),
+        shuffle=False,
+        num_workers=int(args.num_workers),
+        collate_fn=collate,
+        pin_memory=(device.type == "cuda"),
+    )
+
+    model = TextConditionedIJepa(
+        num_labels=n_classes,
+        ijepa_id=args.ijepa,
+        clip_id=args.clip,
+        cond_dim=int(args.cond_dim),
+        fusion_hidden=int(args.fusion_hidden),
+        fusion_type=str(args.fusion_type),
+        freeze_text_encoder=True,
+    ).to(device)
+    _load_base_checkpoint_if_any(model, args.base_checkpoint)
+    model.eval()
+    model.backbone.eval()
+    for p in model.parameters():
+        p.requires_grad = False
+
+    tok = AutoTokenizer.from_pretrained(args.clip)
+    csp_vocab = CspCompositionVocab(
+        num_attrs=len(csp_meta.attrs),
+        num_objs=len(csp_meta.objs),
+        text_encoder=model.text_cond.text_encoder,
+        adapter=model.text_cond.adapter,
+        tokenizer=tok,
+        text_hidden_dim=int(model.text_cond.text_encoder.config.hidden_size),
+        cond_dim=int(args.cond_dim),
+        context_length=int(args.csp_context_length),
+        attr_dropout=float(args.csp_attr_dropout),
+    ).to(device)
+    csp_vocab.load_state_dict(bundle["csp_vocab"], strict=True)
+    csp_vocab.eval()
+
+    use_amp_eval = device.type == "cuda" and bool(args.amp)
+    (
+        loss,
+        top1,
+        top5,
+        auc_csp,
+        seen_top1,
+        seen_top5,
+        unseen_top1,
+        unseen_top5,
+    ) = eval_clip_style_classification(
+        loader,
+        device,
+        num_classes=n_classes,
+        use_amp=use_amp_eval,
+        forward_batch=_make_csp_eval_forward(
+            model,
+            csp_vocab,
+            csp_meta,
+            device,
+            use_amp=use_amp_eval,
+        ),
+        modules_to_eval=(model, csp_vocab),
+    )
+    split_name = f"{args.eval_split} (n={len(eval_ds)})"
+    print(
+        f"\n{split_name}\n  loss: {loss:.4f}\n  top-1: {top1*100:.2f}%\n  top-5: {top5*100:.2f}%\n  "
+        f"seen_top-1: {seen_top1*100:.2f}%\n  seen_top-5: {seen_top5*100:.2f}%\n  "
+        f"unseen_top-1: {unseen_top1*100:.2f}%\n  unseen_top-5: {unseen_top5*100:.2f}%\n  "
+        f"auc_csp_style: {auc_csp:.4f}\n",
+        flush=True,
+    )
+
+    metrics_json = (args.metrics_json or "").strip()
+    if metrics_json:
+        p = Path(metrics_json)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "run_type": "csp_vocab_eval",
+            "dataset": args.dataset,
+            "split": args.eval_split,
+            "seed": int(args.seed),
+            "fusion_type": str(getattr(model.fusion, "fusion_type", args.fusion_type)),
+            "experiment_tag": (args.experiment_tag or "").strip(),
+            "checkpoint": artifact_path,
+            "from_hub": "",
+            "lr": float(args.lr),
+            "weight_decay": float(args.weight_decay),
+            "loss": float(loss),
+            "top1": float(top1),
+            "top5": float(top5),
+            "seen_top1": float(seen_top1),
+            "seen_top5": float(seen_top5),
+            "unseen_top1": float(unseen_top1),
+            "unseen_top5": float(unseen_top5),
+            "auc_csp_style": float(auc_csp),
+            "batch_size": int(args.batch_size),
+            "timestamp_unix": int(time.time()),
+        }
+        p.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+        print(f"Wrote eval metrics JSON to {p}", flush=True)
+
+    if not args.no_wandb:
+        os.environ["WANDB_LOG_MODEL"] = "false"
+        import wandb
+
+        w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
+        if w_key:
+            wandb.login(key=w_key, relogin=True)
+        run_name = _resolve_wandb_run_name(
+            (args.wandb_run_name or "").strip(),
+            f"csp-vocab-eval-{args.dataset}-{args.eval_split}-seed{args.seed}",
+        )
+        w = wandb.init(
+            project=args.wandb_project,
+            entity=(args.wandb_entity or "").strip() or None,
+            name=run_name,
+            config={
+                "mode": "csp_vocab_eval_only",
+                "dataset": args.dataset,
+                "eval_split": args.eval_split,
+                "fusion_type": str(getattr(model.fusion, "fusion_type", args.fusion_type)),
+                "seed": int(args.seed),
+                "checkpoint": artifact_path,
+            },
+        )
+        wandb.log(
+            {
+                f"{args.eval_split}/loss": float(loss),
+                f"{args.eval_split}/acc@1": float(top1),
+                f"{args.eval_split}/acc@5": float(top5),
+                f"{args.eval_split}/seen_acc@1": float(seen_top1),
+                f"{args.eval_split}/seen_acc@5": float(seen_top5),
+                f"{args.eval_split}/unseen_acc@1": float(unseen_top1),
+                f"{args.eval_split}/unseen_acc@5": float(unseen_top5),
+                f"{args.eval_split}/auc_csp_style": float(auc_csp),
+            },
+            step=0,
+        )
+        wandb.finish()
+        del w
+
+
 def _load_base_checkpoint_if_any(model: TextConditionedIJepa, checkpoint: str) -> None:
     ckpt = (checkpoint or "").strip()
     if not ckpt:
@@ -1044,6 +1284,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="Max images per W&B panel when --wandb-log-images is set.",
     )
     p.add_argument("--hyperparams-file", type=str, default=DEFAULT_HYPERPARAMS_FILE)
+    g = p.add_argument_group("evaluation (use with --eval-only)")
+    g.add_argument(
+        "--eval-only",
+        action="store_true",
+        help="Load a saved CSP vocab artifact (--checkpoint) and evaluate on --eval-split (no training).",
+    )
+    g.add_argument(
+        "--checkpoint",
+        default="",
+        help="Path to a saved CSP bundle (dict with csp_vocab / meta / args); required with --eval-only.",
+    )
+    g.add_argument(
+        "--eval-split",
+        choices=("val", "test"),
+        default="val",
+        help="val = held-out split; test = official test merge (see vision_data).",
+    )
+    g.add_argument(
+        "--max-eval-samples",
+        type=int,
+        default=0,
+        help="Cap eval split size; 0 = full (applies to the chosen --eval-split only).",
+    )
+    g.add_argument(
+        "--metrics-json",
+        default="",
+        help="Optional JSON path for eval metrics (same schema keys as text_cond_train eval).",
+    )
+    g.add_argument(
+        "--experiment-tag",
+        default="",
+        help="Optional tag stored in --metrics-json.",
+    )
     return p
 
 
@@ -1052,6 +1325,9 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     apply_hyperparams_from_file(args, argv)
+    if args.eval_only:
+        run_csp_eval_only(args)
+        return
     if not _arg_was_explicit(argv, "save"):
         args.save = _default_save_from_base(args.base_checkpoint)
     run_post_training(args)
