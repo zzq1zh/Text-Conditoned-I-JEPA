@@ -46,7 +46,6 @@ from main import (  # noqa: E402
     resolve_vision_model_id,
 )
 from vision_data import (  # noqa: E402
-    csp_style_eval_allowed_class_indices,
     csp_vocab_allowed_class_indices,
     list_vision_dataset_keys,
     load_vision_train_val_test_specs,
@@ -723,12 +722,12 @@ def run_finetune(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
-    val_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, "val")
+    val_allowed = csp_vocab_allowed_class_indices(tvt, "val")
     val_eval_allowed: list[int] | None = val_allowed if len(val_allowed) < n_classes else None
     if val_eval_allowed is not None:
         print(
             f"Val eval: candidate softmax restricted to {len(val_allowed)}/{n_classes} classes "
-            "(train∪val pairs; excludes test-only on cspref_*).",
+            "(train ∪ val label union).",
             flush=True,
         )
 

@@ -537,8 +537,8 @@ def load_vision_train_val_test_specs(
     are ignored: the published ``train`` / ``val`` / ``test`` splits are used directly
     (no merge of val into the test pool).
 
-    For **cspref_*** closed-world scoring, use :func:`csp_style_eval_allowed_class_indices`
-    so val eval uses train∪val candidates and test eval uses train∪test (see training/eval scripts).
+    For **cspref_*** closed-world scoring, use :func:`csp_vocab_allowed_class_indices`
+    with ``role="val"`` or ``"test"`` so val eval uses train∪val candidates and test eval uses train∪test.
     """
     if dataset_key not in DATASET_CONFIG:
         known = ", ".join(list_vision_dataset_keys())
@@ -609,43 +609,9 @@ def load_vision_train_val_test_specs(
     )
 
 
-def csp_style_eval_allowed_class_indices(
-    dataset_key: str,
-    tvt: VisionTrainTestVal,
-    eval_split: str,
-) -> list[int]:
-    """
-    For CSP-reference hub datasets (``cspref_*``), restrict closed-world candidates:
-
-    - ``eval_split == "val"``: classes that appear in **train** or **val** rows
-      (exclude test-only pair types from the softmax).
-    - ``eval_split == "test"``: classes that appear in **train** or **test** rows
-      (exclude val-only pair types).
-
-    For all other registry entries, returns ``range(num_classes)`` (no restriction).
-    """
-    if eval_split not in ("val", "test"):
-        raise ValueError(f"eval_split must be 'val' or 'test', got {eval_split!r}")
-    n = len(tvt.train.class_names)
-    cfg = DATASET_CONFIG.get(dataset_key) or {}
-    if cfg.get("loader") != "csp_ref_hub":
-        return list(range(n))
-    lk = tvt.train.label_key
-    ids_train = {int(x) for x in tvt.train.dataset.unique(lk)}
-    if eval_split == "val":
-        ids_other = {int(x) for x in tvt.val.dataset.unique(lk)}
-        allowed = sorted(ids_train | ids_other)
-    else:
-        ids_other = {int(x) for x in tvt.test.dataset.unique(lk)}
-        allowed = sorted(ids_train | ids_other)
-    if len(allowed) > n:
-        raise RuntimeError(f"Allowed class count {len(allowed)} exceeds num_classes {n}")
-    return allowed
-
-
 def csp_vocab_allowed_class_indices(tvt: VisionTrainTestVal, role: str) -> list[int]:
     """
-    Global class indices allowed in the **composed pair bank** for CSP vocab training/eval:
+    Global class indices allowed for closed-world classification / composed-pair banks:
 
     - ``role == "train"``: labels that appear in **train** rows only.
     - ``role == "val"``: labels that appear in **train** or **val** rows.
@@ -653,9 +619,8 @@ def csp_vocab_allowed_class_indices(tvt: VisionTrainTestVal, role: str) -> list[
 
     Uses ``tvt.train.label_key`` on each split (shared ``ClassLabel`` order across splits).
 
-    This is the data-driven rule used by ``csp_vocab_train`` for restricting
-    ``compose_*`` / contrastive candidates; it generalizes the former ``cspref_*``-only
-    ``csp_style_eval_allowed_class_indices`` pattern to any dataset.
+    Used by ``csp_vocab_train``, ``text_cond_train`` (--finetune-csp-vocab, eval, and
+    main training val metrics) to restrict softmax candidates from actual split label sets.
     """
     if role not in ("train", "val", "test"):
         raise ValueError(f"role must be 'train', 'val', or 'test', got {role!r}")
