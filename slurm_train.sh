@@ -22,15 +22,16 @@ cd "$SLURM_SUBMIT_DIR"
 
 source ~/.local/bin/env
 
-# Select target and dataset by args or environment variables.
+# Select target / dataset / W&B project by args or env vars.
 # Usage examples:
-#   sbatch slurm_train.sh dinov3 cspref_mit_states
+#   sbatch slurm_train.sh dinov3 cspref_mit_states my-wandb-project
 #   sbatch slurm_train.sh ijepa cspref_ut_zappos
 #   sbatch slurm_train.sh vjepa cspref_cgqa
-#   TRAIN_TARGET=vjepa TRAIN_DATASET=cspref_ut_zappos sbatch slurm_train.sh
+#   TRAIN_TARGET=vjepa TRAIN_DATASET=cspref_ut_zappos WANDB_PROJECT=myproj sbatch slurm_train.sh
 #   sbatch slurm_train.sh two_fusions cspref_mit_states
 TARGET="${1:-${TRAIN_TARGET:-two_fusions}}"
 DATASET="${2:-${TRAIN_DATASET:-cspref_mit_states}}"
+W_PROJECT="${3:-${WANDB_PROJECT:-}}"
 
 case "${TARGET}" in
   two_fusions|two-stage|two_stage)
@@ -57,6 +58,12 @@ esac
 
 echo "Training target: ${TARGET}"
 echo "Dataset: ${DATASET}"
+if [[ -n "${W_PROJECT}" ]]; then
+  export WANDB_PROJECT="${W_PROJECT}"
+  echo "W&B project: ${WANDB_PROJECT}"
+else
+  echo "W&B project: <default from env/.env/code>"
+fi
 echo "Command: ${TRAIN_CMD[*]}"
 
 if [[ "${TARGET}" == "two_fusions" || "${TARGET}" == "two-stage" || "${TARGET}" == "two_stage" ]]; then
