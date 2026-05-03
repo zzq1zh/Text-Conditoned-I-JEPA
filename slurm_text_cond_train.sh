@@ -24,13 +24,13 @@ source ~/.local/bin/env
 
 # Select target / dataset / W&B project by args or env vars.
 # Usage examples:
-#   sbatch slurm_train.sh dinov3 cspref_mit_states my-wandb-project
-#   sbatch slurm_train.sh ijepa cspref_ut_zappos
-#   sbatch slurm_train.sh vjepa cspref_cgqa
-#   TRAIN_TARGET=vjepa TRAIN_DATASET=cspref_ut_zappos WANDB_PROJECT=myproj sbatch slurm_train.sh
-#   sbatch slurm_train.sh two_fusions cspref_mit_states
-#   sbatch slurm_train.sh csp_posttrain cspref_mit_states "" /path/to/base.ckpt
-#   sbatch slurm_train.sh csp_posttrain cspref_mit_states my-wandb-project /path/to/base.ckpt vjepa
+#   sbatch slurm_text_cond_train.sh dinov3 cspref_mit_states my-wandb-project
+#   sbatch slurm_text_cond_train.sh ijepa cspref_ut_zappos
+#   sbatch slurm_text_cond_train.sh vjepa cspref_cgqa
+#   TRAIN_TARGET=vjepa TRAIN_DATASET=cspref_ut_zappos WANDB_PROJECT=myproj sbatch slurm_text_cond_train.sh
+#   sbatch slurm_text_cond_train.sh two_fusions cspref_mit_states
+#   sbatch slurm_text_cond_train.sh csp_posttrain cspref_mit_states "" /path/to/base.ckpt
+#   sbatch slurm_text_cond_train.sh csp_posttrain cspref_mit_states my-wandb-project /path/to/base.ckpt vjepa
 TARGET="${1:-${TRAIN_TARGET:-two_fusions}}"
 DATASET="${2:-${TRAIN_DATASET:-cspref_mit_states}}"
 W_PROJECT="${3:-${WANDB_PROJECT:-}}"
