@@ -2,8 +2,8 @@
 Standalone post-training for CSP-style compositional vocabulary.
 
 This script is intentionally self-contained:
-- no dependency on ``text_cond_train.py``
-- no dependency on ``csp_vocab.py``
+- no dependency on ``text_cond_train.py`` or ``csp_vocab.py``
+- shares validation metrics with ``text_cond_train`` through ``csp_eval``
 - trains only CSP attr/object embeddings while freezing TextConditionedIJepa
 """
 
@@ -16,7 +16,7 @@ import math
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import torch
 import torch.nn as nn
@@ -44,6 +44,8 @@ from vision_data import (  # noqa: E402
     load_vision_train_val_test_specs,
     set_seed,
 )
+
+from csp_eval import clip_contrastive_loss, eval_clip_style_classification  # noqa: E402
 
 
 DEFAULT_TRAIN_BATCH = 128
@@ -414,32 +416,19 @@ def _build_candidate_text_bank(
     return torch.cat(chunks, dim=0)
 
 
-def _clip_contrastive_loss(pair_scores: torch.Tensor) -> torch.Tensor:
-    target = torch.arange(pair_scores.size(0), device=pair_scores.device, dtype=torch.long)
-    loss_i2t = nn.functional.cross_entropy(pair_scores, target)
-    loss_t2i = nn.functional.cross_entropy(pair_scores.t(), target)
-    return 0.5 * (loss_i2t + loss_t2i)
-
-
-@torch.inference_mode()
-def _eval_topk(
+def _make_csp_eval_forward(
     model: TextConditionedIJepa,
     csp_vocab: CspCompositionVocab,
     csp_meta: CspVocabMeta,
-    loader: DataLoader,
     device: torch.device,
     *,
     use_amp: bool,
-    num_classes: int,
-) -> tuple[float, float]:
-    model.eval()
-    csp_vocab.eval()
-    n_ok1 = 0
-    n_ok5 = 0
-    n = 0
-    k_top = min(5, num_classes)
-    candidate_text_bank = csp_vocab.compose_all_pairs(csp_meta, device=device)
-    for batch in loader:
+) -> Callable[[dict[str, Any]], tuple[torch.Tensor, torch.Tensor | None]]:
+    """Per-batch forward for :func:`eval_clip_style_classification` (composed text bank + contrastive loss)."""
+
+    def forward_batch(
+        batch: dict[str, Any],
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
         pv = batch["pixel_values"].to(device, non_blocking=True)
         y = batch["labels"].to(device, non_blocking=True)
         with torch.amp.autocast(
@@ -447,17 +436,15 @@ def _eval_topk(
             enabled=(device.type == "cuda" and use_amp),
             dtype=torch.float16,
         ):
+            candidate_text_bank = csp_vocab.compose_all_pairs(csp_meta, device=device)
             z = model.encode_image(pv)
             logits = model.score_candidates(z, candidate_text_bank)
-        pred1 = logits.argmax(dim=-1)
-        n_ok1 += int((pred1 == y).sum().item())
-        if k_top > 0:
-            topk_idx = logits.topk(k_top, dim=-1).indices
-            n_ok5 += int((topk_idx == y.unsqueeze(-1)).any(dim=-1).sum().item())
-        n += y.size(0)
-    if n == 0:
-        return 0.0, 0.0
-    return float(n_ok1 / n), float(n_ok5 / n)
+            pos_text = candidate_text_bank.index_select(0, y)
+            pair_scores = model.score_candidates(z, pos_text)
+            loss = clip_contrastive_loss(pair_scores)
+        return logits, loss
+
+    return forward_batch
 
 
 def _load_base_checkpoint_if_any(model: TextConditionedIJepa, checkpoint: str) -> None:
@@ -600,7 +587,7 @@ def run_post_training(args: argparse.Namespace) -> None:
                 z = model.encode_image(pv)
                 pos_text = candidate_text_bank.index_select(0, y)
                 pair_scores = model.score_candidates(z, pos_text)
-                loss = _clip_contrastive_loss(pair_scores)
+                loss = clip_contrastive_loss(pair_scores)
             if grad_scaler is not None:
                 grad_scaler.scale(loss).backward()
             else:
@@ -623,18 +610,35 @@ def run_post_training(args: argparse.Namespace) -> None:
                 pbar.set_postfix(loss=f"{float(loss.detach()):.3f}", acc=f"{batch_acc:.3f}")
             global_step += 1
 
-        val_top1, val_top5 = _eval_topk(
-            model,
-            csp_vocab,
-            csp_meta,
+        (
+            val_loss,
+            val_top1,
+            val_top5,
+            val_auc_csp,
+            val_seen_top1,
+            val_seen_top5,
+            val_unseen_top1,
+            val_unseen_top5,
+        ) = eval_clip_style_classification(
             val_loader,
             device,
-            use_amp=bool(args.amp),
             num_classes=n_classes,
+            use_amp=bool(args.amp),
+            forward_batch=_make_csp_eval_forward(
+                model,
+                csp_vocab,
+                csp_meta,
+                device,
+                use_amp=bool(args.amp),
+            ),
+            modules_to_eval=(model, csp_vocab),
         )
         print(
-            f"Epoch {epoch + 1}/{args.epochs}  val_top1={val_top1 * 100:.2f}% "
-            f"val_top5={val_top5 * 100:.2f}%  steps={global_step}",
+            f"Epoch {epoch + 1}/{args.epochs}  val_loss={val_loss:.4f}  "
+            f"val_top1={val_top1 * 100:.2f}%  val_top5={val_top5 * 100:.2f}%  "
+            f"seen_top1={val_seen_top1 * 100:.2f}%  seen_top5={val_seen_top5 * 100:.2f}%  "
+            f"unseen_top1={val_unseen_top1 * 100:.2f}%  unseen_top5={val_unseen_top5 * 100:.2f}%  "
+            f"auc_csp_style={val_auc_csp:.4f}  steps={global_step}",
             flush=True,
         )
 
