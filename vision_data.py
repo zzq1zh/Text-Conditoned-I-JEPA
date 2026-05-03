@@ -18,7 +18,7 @@ from datasets import Dataset, DatasetDict, Features, ClassLabel, Image, concaten
 # CIFAR-10/100 are common CLIP / vision-language baselines; extend this table to add more sets.
 # "mit_states" uses Hugging Face nested format (noun + list of images) → flattened object classification
 # (one row per image, label = noun); see :func:`load_vision_huggingface_as_dataset_dict`.
-# "csp_*" are project Hub datasets (see ``build_csp_hf_datasets.py``) with pre-split
+# "csp_*" are project Hub datasets (see ``build_csp_hf_datasets.py --mode clevr``) with pre-split
 # train/val/test; ``load_vision_train_val_test_specs`` uses them as-is (no re-split of train).
 DATASET_CONFIG: dict[str, dict[str, Any]] = {
     "cifar10": {

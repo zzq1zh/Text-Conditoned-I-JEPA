@@ -27,10 +27,11 @@ Recommended `.env` keys:
 ## Main scripts
 
 - `text_cond_train.py`: train / eval entrypoint
-- `run_experiments.py`: config-driven multi-seed train+eval launcher (reads `hyperparameters.json`)
+- `csp_vocab_train.py`: CSP-style compositional vocabulary training entrypoint
+- `run_text_cond_train.py`: config-driven multi-seed train+eval launcher (reads `hyperparameters.json`)
 - `main.py`: model definitions (`TextConditionedIJepa`, fusion heads)
 - `vision_data.py`: dataset registry and split logic
-- `build_csp_reference_hf_datasets.py`: convert CSP reference datasets to HF format and push
+- `build_csp_hf_datasets.py`: build/push CSP Hugging Face datasets (`--mode clevr` for CLEVR-style `csp_*` releases; `--mode reference` for MIT-States / UT-Zappos / C-GQA)
 - `train_two_fusions_and_push.sh`: run `clip_similarity` and `cross_attention`, upload both, optional grid search + multi-seed
 
 ## Training
@@ -49,6 +50,10 @@ uv run python text_cond_train.py \
 Useful flags:
 
 - `--fusion-type {cross_attention,linear,clip_similarity}`
+- `--csp-vocab-train` (enable CSP-style attr/object compositional vocabulary)
+- `--csp-vocab-init {random,text}`
+- `--csp-attr-dropout 0.3`
+- `--csp-pair-separator " "`
 - `--vision-backbone {ijepa,vjepa,dinov3}` (or pass explicit model id with `--ijepa ...`)
 - `--hyperparams-file hyperparameters.json`
 - `--finetune-clip-text`
@@ -65,12 +70,22 @@ uv run python text_cond_train.py --vision-backbone vjepa --dataset cspref_mit_st
 uv run python text_cond_train.py --vision-backbone dinov3 --dataset cspref_mit_states --epochs 1
 ```
 
-## Config-driven experiments
-
-`run_experiments.py` now reads all runtime/training parameters from `hyperparameters.json` (no CLI args):
+Dedicated CSP vocab training (defaults to `--csp-vocab-train --csp-vocab-init text --fusion-type clip_similarity`):
 
 ```bash
-uv run python run_experiments.py
+uv run python csp_vocab_train.py \
+  --dataset cspref_mit_states \
+  --epochs 20 \
+  --batch-size 128 \
+  --save ckpt_csp_vocab.pt
+```
+
+## Config-driven experiments
+
+`run_text_cond_train.py` now reads all runtime/training parameters from `hyperparameters.json` (no CLI args):
+
+```bash
+uv run python run_text_cond_train.py
 ```
 
 ## Hyperparameters file

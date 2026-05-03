@@ -36,7 +36,7 @@ from vision_data import (
     prompts_for_label_indices,
 )
 
-# Same template as CLIP zero-shot in clip_pipeline / vision_data usage
+# Same template as CLIP zero-shot helpers in vision_data usage
 DEFAULT_PROMPT_TEMPLATE = "a photo of a {c}."
 
 
@@ -551,7 +551,7 @@ def _parse_args() -> argparse.Namespace:
         "--dataset",
         default="cifar100",
         choices=list_vision_dataset_keys(),
-        help="Key from vision_data (same as clip_pipeline --dataset).",
+        help="Key from vision_data.",
     )
     p.add_argument(
         "--val-fraction",
