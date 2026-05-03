@@ -837,7 +837,7 @@ def run_finetune(args: argparse.Namespace) -> None:
     t0 = time.time()
 
     for epoch in range(args.epochs):
-        # Recompute candidate text embeddings each epoch from the current text adapter.
+        # One bank per epoch for training (rebuilding every step would be costly).
         candidate_text_bank = _build_candidate_text_bank(
             model,
             tok,
@@ -923,6 +923,16 @@ def run_finetune(args: argparse.Namespace) -> None:
             )
             global_step += 1
 
+        # Val must use text embeddings from the *current* adapter after this epoch's updates.
+        # (Training still uses the bank built at epoch start for speed; see loop above.)
+        candidate_text_bank = _build_candidate_text_bank(
+            model,
+            tok,
+            tvt.train.class_names,
+            args.text_template,
+            device,
+            chunk_size=int(args.text_bank_chunk_size),
+        )
         (
             val_loss,
             val_top1,
@@ -1413,7 +1423,7 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
 
         out_path = (args.save or "").strip()
         if out_path:
-            out = {
+            out: dict[str, Any] = {
                 "csp_vocab": csp_vocab.state_dict(),
                 "adapter": model.text_cond.adapter.state_dict(),
                 "fusion": model.fusion.state_dict(),
@@ -1427,6 +1437,8 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
                 },
                 "args": vars(args),
             }
+            if bool(args.finetune_vision_backbone):
+                out["backbone"] = model.backbone.state_dict()
             torch.save(out, out_path)
             print(f"Saved CSP vocab bundle to {out_path}", flush=True)
             if use_wandb and w is not None:

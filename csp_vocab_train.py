@@ -5,6 +5,7 @@ Saved ``.pt`` dict bundles include (where applicable):
 
 - ``csp_vocab``, ``meta``, ``args`` — always
 - ``adapter``, ``fusion`` — :class:`TextConditionedIJepa` head weights (same as ``text_cond_train --finetune-csp-vocab``); eval loads them over ``--base-checkpoint`` when present
+- ``backbone`` — optional; present when training used ``--finetune-vision-backbone`` so ``--eval-only`` matches in-training vision features
 """
 
 from __future__ import annotations
@@ -767,6 +768,7 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
+    finetune_v = bool(getattr(args, "finetune_vision_backbone", False))
     model = TextConditionedIJepa(
         num_labels=n_classes,
         ijepa_id=args.ijepa,
@@ -775,6 +777,7 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
         fusion_hidden=int(args.fusion_hidden),
         fusion_type=str(args.fusion_type),
         freeze_text_encoder=True,
+        freeze_vision_backbone=not finetune_v,
     ).to(device)
     _load_base_checkpoint_if_any(model, args.base_checkpoint)
     model.eval()
@@ -787,6 +790,17 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
         model.text_cond.adapter.load_state_dict(ad, strict=True)
     if isinstance(fu, dict):
         model.fusion.load_state_dict(fu, strict=True)
+    bb = bundle.get("backbone")
+    if isinstance(bb, dict) and bb:
+        model.backbone.load_state_dict(bb, strict=True)
+        print("Loaded vision backbone weights from CSP bundle.", flush=True)
+    elif finetune_v:
+        print(
+            "Warning: training used finetune_vision_backbone but this bundle has no 'backbone' tensor dict; "
+            "using Hugging Face pretrained backbone (metrics will not match that training run). "
+            "Re-save with a current text_cond_train.py after finetune-vision-backbone training.",
+            flush=True,
+        )
 
     tok = AutoTokenizer.from_pretrained(args.clip)
     csp_vocab = CspCompositionVocab(
