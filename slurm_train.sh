@@ -38,13 +38,13 @@ case "${TARGET}" in
     TRAIN_CMD=(bash train_two_fusions_and_push.sh)
     ;;
   dinov3|dino)
-    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone dinov3 --dataset "${DATASET}")
+    TRAIN_CMD=(uv run python run_experiments.py --vision-backbone dinov3 --dataset "${DATASET}")
     ;;
   ijepa|i-jepa)
-    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone ijepa --dataset "${DATASET}")
+    TRAIN_CMD=(uv run python run_experiments.py --vision-backbone ijepa --dataset "${DATASET}")
     ;;
   vjepa|v-jepa)
-    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone vjepa --dataset "${DATASET}")
+    TRAIN_CMD=(uv run python run_experiments.py --vision-backbone vjepa --dataset "${DATASET}")
     ;;
   ./*.sh|*.sh)
     TRAIN_CMD=(bash "${TARGET}")
