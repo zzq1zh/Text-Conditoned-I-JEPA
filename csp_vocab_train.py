@@ -13,7 +13,9 @@ import argparse
 import inspect
 import json
 import math
+import os
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -45,6 +47,106 @@ from vision_data import (  # noqa: E402
 )
 
 from csp_eval import clip_contrastive_loss, eval_clip_style_classification  # noqa: E402
+
+# W&B: same default project as text_cond_train; override with WANDB_PROJECT in .env
+DEFAULT_WANDB_PROJECT = "csci1430-tc-ijepa"
+
+
+def _default_wandb_project() -> str:
+    p = (os.environ.get("WANDB_PROJECT") or DEFAULT_WANDB_PROJECT).strip()
+    return p or DEFAULT_WANDB_PROJECT
+
+
+def _resolve_wandb_run_name(explicit_name: str, fallback_name: str) -> str:
+    s = (explicit_name or "").strip()
+    return s or fallback_name
+
+
+def _wandb_model_suffix(args: argparse.Namespace) -> str:
+    backbone = (getattr(args, "vision_backbone", "") or "").strip()
+    if backbone:
+        return backbone
+    model_id = (getattr(args, "ijepa", "") or "").strip()
+    if model_id:
+        return model_id.rsplit("/", 1)[-1]
+    return "model"
+
+
+def _default_csp_vocab_wandb_run_name(args: argparse.Namespace) -> str:
+    return (
+        f"csp-vocab-{args.dataset}-{args.fusion_type}-seed{args.seed}-{_wandb_model_suffix(args)}"
+    )
+
+
+@torch.inference_mode()
+def _make_wandb_images(
+    pixel_values: torch.Tensor,
+    labels: torch.Tensor,
+    preds: torch.Tensor,
+    *,
+    max_images: int,
+    class_names: list[str] | None = None,
+) -> list[Any]:
+    """
+    One W&B image panel (2x4-style grid) with predicted / true labels.
+    Matches ``text_cond_train._make_wandb_images`` (duplicated to avoid importing that module).
+    """
+    import wandb
+    from PIL import Image, ImageDraw
+
+    def _to_wandb_image_tensor(img: torch.Tensor) -> torch.Tensor:
+        if img.ndim == 4:
+            img = img[img.shape[0] // 2]
+        if img.ndim == 3 and img.shape[0] not in (1, 3) and img.shape[-1] in (1, 3):
+            img = img.permute(2, 0, 1)
+        if img.ndim == 2:
+            img = img.unsqueeze(0)
+        if img.ndim != 3:
+            raise ValueError(f"Unsupported image tensor shape for wandb.Image: {tuple(img.shape)}")
+        return img
+
+    def _to_uint8_hwc(img_chw: torch.Tensor) -> Any:
+        x = img_chw.float()
+        x = x - x.min()
+        x = x / x.max().clamp(min=1e-6)
+        if x.shape[0] == 1:
+            x = x.repeat(3, 1, 1)
+        x = (x * 255.0).clamp(0, 255).byte().permute(1, 2, 0).numpy()
+        return x
+
+    pv = pixel_values.detach().cpu().float()
+    y = labels.detach().cpu().long()
+    p = preds.detach().cpu().long()
+    n = min(int(max_images), int(pv.size(0)))
+    if n <= 0:
+        return []
+
+    def _label_text(idx: int) -> str:
+        if class_names is not None and 0 <= idx < len(class_names):
+            return class_names[idx]
+        return str(idx)
+
+    cols = 4
+    rows = max((n + cols - 1) // cols, 1)
+    tile_w = 196
+    tile_h = 196
+    text_h = 40
+    canvas = Image.new("RGB", (cols * tile_w, rows * (tile_h + text_h)), color=(245, 245, 245))
+    draw = ImageDraw.Draw(canvas)
+    for i in range(n):
+        img = _to_wandb_image_tensor(pv[i])
+        arr = _to_uint8_hwc(img)
+        tile = Image.fromarray(arr).resize((tile_w, tile_h))
+        yi = int(y[i])
+        pi = int(p[i])
+        r = i // cols
+        c = i % cols
+        x0 = c * tile_w
+        y0 = r * (tile_h + text_h)
+        canvas.paste(tile, (x0, y0))
+        draw.text((x0 + 4, y0 + tile_h + 2), f"P: {_label_text(pi)} ({pi})", fill=(20, 20, 20))
+        draw.text((x0 + 4, y0 + tile_h + 20), f"T: {_label_text(yi)} ({yi})", fill=(20, 20, 20))
+    return [wandb.Image(canvas, caption=f"Preview panel ({n} images)")]
 
 
 DEFAULT_TRAIN_BATCH = 128
@@ -625,104 +727,220 @@ def run_post_training(args: argparse.Namespace) -> None:
     use_cuda_amp = (device.type == "cuda") and bool(args.amp)
     grad_scaler = torch.amp.GradScaler("cuda") if use_cuda_amp else None
     global_step = 0
+    t0 = time.time()
 
-    for epoch in range(int(args.epochs)):
-        csp_vocab.train()
-        pbar = tqdm(train_loader, desc=f"csp post-train ep {epoch + 1}/{args.epochs}", file=sys.stdout)
-        for batch_idx, batch in enumerate(pbar):
-            pv = batch["pixel_values"].to(device, non_blocking=True)
-            y = batch["labels"].to(device, non_blocking=True)
-            opt.zero_grad(set_to_none=True)
-            with torch.amp.autocast(
-                device_type=device.type,
-                enabled=use_cuda_amp,
-                dtype=torch.float16,
-            ):
-                # Re-compose every step so gradients flow into CSP vocab parameters.
-                candidate_text_bank = csp_vocab.compose_all_pairs(csp_meta, device=device)
-                z = model.encode_image(pv)
-                pos_text = candidate_text_bank.index_select(0, y)
-                pair_scores = model.score_candidates(z, pos_text)
-                loss = clip_contrastive_loss(pair_scores)
-            if grad_scaler is not None:
-                grad_scaler.scale(loss).backward()
-            else:
-                loss.backward()
-            if float(args.max_grad_norm) > 0:
-                if grad_scaler is not None:
-                    grad_scaler.unscale_(opt)
-                torch.nn.utils.clip_grad_norm_(params, float(args.max_grad_norm))
-            if grad_scaler is not None:
-                grad_scaler.step(opt)
-                grad_scaler.update()
-            else:
-                opt.step()
-            if sched is not None:
-                sched.step()
-            if (batch_idx % int(args.log_interval)) == 0:
-                with torch.inference_mode():
-                    full_logits = model.score_candidates(z, candidate_text_bank)
-                    batch_acc = float((full_logits.argmax(-1) == y).float().mean().item())
-                pbar.set_postfix(loss=f"{float(loss.detach()):.3f}", acc=f"{batch_acc:.3f}")
-            global_step += 1
+    use_wandb = not bool(args.no_wandb)
+    w: Any = None
+    if use_wandb:
+        os.environ["WANDB_LOG_MODEL"] = "false"
+        import wandb
 
-        (
-            val_loss,
-            val_top1,
-            val_top5,
-            val_auc_csp,
-            val_seen_top1,
-            val_seen_top5,
-            val_unseen_top1,
-            val_unseen_top5,
-        ) = eval_clip_style_classification(
-            val_loader,
-            device,
-            num_classes=n_classes,
-            use_amp=bool(args.amp),
-            forward_batch=_make_csp_eval_forward(
-                model,
-                csp_vocab,
-                csp_meta,
-                device,
-                use_amp=bool(args.amp),
-            ),
-            modules_to_eval=(model, csp_vocab),
+        w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
+        if w_key:
+            wandb.login(key=w_key, relogin=True)
+        run_name = _resolve_wandb_run_name(
+            (args.wandb_run_name or "").strip(),
+            _default_csp_vocab_wandb_run_name(args),
         )
-        print(
-            f"Epoch {epoch + 1}/{args.epochs}  val_loss={val_loss:.4f}  "
-            f"val_top1={val_top1 * 100:.2f}%  val_top5={val_top5 * 100:.2f}%  "
-            f"seen_top1={val_seen_top1 * 100:.2f}%  seen_top5={val_seen_top5 * 100:.2f}%  "
-            f"unseen_top1={val_unseen_top1 * 100:.2f}%  unseen_top5={val_unseen_top5 * 100:.2f}%  "
-            f"auc_csp_style={val_auc_csp:.4f}  steps={global_step}",
-            flush=True,
-        )
-
-    if args.save and args.save.strip():
-        out = {
-            "csp_vocab": csp_vocab.state_dict(),
-            "meta": {
-                "attrs": csp_meta.attrs,
-                "objs": csp_meta.objs,
-                "pairs": csp_meta.pairs,
-                "pair_attr_idx": csp_meta.pair_attr_idx.cpu(),
-                "pair_obj_idx": csp_meta.pair_obj_idx.cpu(),
-                "pair_separator": csp_meta.pair_separator,
-            },
-            "args": vars(args),
+        wandb_config: dict[str, Any] = {
+            "run_type": "csp_vocab_posttrain",
+            "dataset": args.dataset,
+            "vision_backbone": args.vision_backbone,
+            "ijepa_id": args.ijepa,
+            "clip_id": args.clip,
+            "fusion_type": args.fusion_type,
+            "cond_dim": int(args.cond_dim),
+            "fusion_hidden": int(args.fusion_hidden),
+            "epochs": int(args.epochs),
+            "batch_size": int(args.batch_size),
+            "lr": float(args.lr),
+            "weight_decay": float(args.weight_decay),
+            "scheduler_type": args.scheduler_type,
+            "warmup_ratio": float(args.warmup_ratio),
+            "min_lr_ratio": float(args.min_lr_ratio),
+            "max_grad_norm": float(args.max_grad_norm),
+            "seed": int(args.seed),
+            "amp": bool(args.amp),
+            "num_workers": int(args.num_workers),
+            "csp_context_length": int(args.csp_context_length),
+            "csp_vocab_init": args.csp_vocab_init,
+            "csp_attr_dropout": float(args.csp_attr_dropout),
+            "base_checkpoint": (args.base_checkpoint or "").strip(),
+            "save": (args.save or "").strip(),
+            "device": str(device),
         }
-        torch.save(out, args.save)
-        print(f"Saved CSP post-training artifact to {args.save}", flush=True)
+        w = wandb.init(
+            project=args.wandb_project,
+            entity=(args.wandb_entity or "").strip() or None,
+            name=run_name,
+            config=wandb_config,
+        )
+
+    try:
+        for epoch in range(int(args.epochs)):
+            csp_vocab.train()
+            pbar = tqdm(
+                train_loader,
+                desc=f"csp post-train ep {epoch + 1}/{args.epochs}",
+                file=sys.stdout,
+            )
+            for batch_idx, batch in enumerate(pbar):
+                pv = batch["pixel_values"].to(device, non_blocking=True)
+                y = batch["labels"].to(device, non_blocking=True)
+                opt.zero_grad(set_to_none=True)
+                with torch.amp.autocast(
+                    device_type=device.type,
+                    enabled=use_cuda_amp,
+                    dtype=torch.float16,
+                ):
+                    candidate_text_bank = csp_vocab.compose_all_pairs(csp_meta, device=device)
+                    z = model.encode_image(pv)
+                    pos_text = candidate_text_bank.index_select(0, y)
+                    pair_scores = model.score_candidates(z, pos_text)
+                    loss = clip_contrastive_loss(pair_scores)
+                if grad_scaler is not None:
+                    grad_scaler.scale(loss).backward()
+                else:
+                    loss.backward()
+                if float(args.max_grad_norm) > 0:
+                    if grad_scaler is not None:
+                        grad_scaler.unscale_(opt)
+                    torch.nn.utils.clip_grad_norm_(params, float(args.max_grad_norm))
+                if grad_scaler is not None:
+                    grad_scaler.step(opt)
+                    grad_scaler.update()
+                else:
+                    opt.step()
+                if sched is not None:
+                    sched.step()
+
+                log_this_batch = (batch_idx % int(args.log_interval)) == 0
+                img_this_batch = bool(
+                    use_wandb
+                    and w is not None
+                    and args.wandb_log_images
+                    and int(args.wandb_image_log_interval) > 0
+                    and ((epoch + 1) % int(args.wandb_image_log_interval) == 0)
+                    and batch_idx == 0
+                )
+                if log_this_batch or img_this_batch:
+                    with torch.inference_mode():
+                        full_logits = model.score_candidates(z, candidate_text_bank)
+                        pred = full_logits.argmax(-1)
+                        batch_acc = float((pred == y).float().mean().item())
+                else:
+                    pred = None
+                    batch_acc = 0.0
+
+                if log_this_batch:
+                    pbar.set_postfix(loss=f"{float(loss.detach()):.3f}", acc=f"{batch_acc:.3f}")
+
+                if use_wandb and w is not None:
+                    import wandb
+
+                    log_d: dict[str, Any] = {}
+                    if log_this_batch:
+                        log_d.update(
+                            {
+                                "train/loss": float(loss.item()),
+                                "train/batch_acc": batch_acc,
+                                "train/lr": opt.param_groups[0]["lr"],
+                                "time_elapsed_s": time.time() - t0,
+                            }
+                        )
+                    if img_this_batch and pred is not None:
+                        log_d["train/images"] = _make_wandb_images(
+                            pv,
+                            y,
+                            pred,
+                            max_images=int(args.wandb_max_images),
+                            class_names=tvt.train.class_names,
+                        )
+                    if log_d:
+                        wandb.log(log_d, step=global_step)
+
+                global_step += 1
+
+            (
+                val_loss,
+                val_top1,
+                val_top5,
+                val_auc_csp,
+                val_seen_top1,
+                val_seen_top5,
+                val_unseen_top1,
+                val_unseen_top5,
+            ) = eval_clip_style_classification(
+                val_loader,
+                device,
+                num_classes=n_classes,
+                use_amp=bool(args.amp),
+                forward_batch=_make_csp_eval_forward(
+                    model,
+                    csp_vocab,
+                    csp_meta,
+                    device,
+                    use_amp=bool(args.amp),
+                ),
+                modules_to_eval=(model, csp_vocab),
+            )
+            print(
+                f"Epoch {epoch + 1}/{args.epochs}  val_loss={val_loss:.4f}  "
+                f"val_top1={val_top1 * 100:.2f}%  val_top5={val_top5 * 100:.2f}%  "
+                f"seen_top1={val_seen_top1 * 100:.2f}%  seen_top5={val_seen_top5 * 100:.2f}%  "
+                f"unseen_top1={val_unseen_top1 * 100:.2f}%  unseen_top5={val_unseen_top5 * 100:.2f}%  "
+                f"auc_csp_style={val_auc_csp:.4f}  steps={global_step}",
+                flush=True,
+            )
+
+            if use_wandb and w is not None:
+                import wandb
+
+                wandb.log(
+                    {
+                        "epoch": epoch,
+                        "val/loss": val_loss,
+                        "val/acc@1": val_top1,
+                        "val/acc@5": val_top5,
+                        "val/auc_csp_style": val_auc_csp,
+                        "val/seen_acc@1": val_seen_top1,
+                        "val/seen_acc@5": val_seen_top5,
+                        "val/unseen_acc@1": val_unseen_top1,
+                        "val/unseen_acc@5": val_unseen_top5,
+                    },
+                    step=global_step,
+                )
+
+        if args.save and args.save.strip():
+            out = {
+                "csp_vocab": csp_vocab.state_dict(),
+                "meta": {
+                    "attrs": csp_meta.attrs,
+                    "objs": csp_meta.objs,
+                    "pairs": csp_meta.pairs,
+                    "pair_attr_idx": csp_meta.pair_attr_idx.cpu(),
+                    "pair_obj_idx": csp_meta.pair_obj_idx.cpu(),
+                    "pair_separator": csp_meta.pair_separator,
+                },
+                "args": vars(args),
+            }
+            torch.save(out, args.save)
+            print(f"Saved CSP post-training artifact to {args.save}", flush=True)
+            if use_wandb and w is not None:
+                import wandb
+
+                wandb.log({"artifact/save_path": str(args.save)}, step=global_step)
+    finally:
+        if use_wandb and w is not None:
+            import wandb
+
+            wandb.finish()
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="Standalone CSP vocab post-training (freeze base model, train compositional vocab).",
-        epilog=(
-            "Example: uv run python csp_vocab_train.py "
-            "--dataset cspref_mit_states --base-checkpoint runs/base.pt  "
-            "(default save: runs/base_csp_vocab.pt)"
-        ),
+        epilog="Example: uv run python csp_vocab_train.py --dataset cspref_mit_states --base-checkpoint runs/base.pt  # add --no-wandb to skip W&B",
     )
     p.add_argument("--dataset", default="cspref_mit_states", choices=list_vision_dataset_keys())
     p.add_argument(
@@ -788,6 +1006,37 @@ def build_parser() -> argparse.ArgumentParser:
             "Default when omitted: next to --base-checkpoint as <stem>_csp_vocab.pt, "
             "or csp_vocab_posttrain.pt if no base checkpoint."
         ),
+    )
+    p.add_argument(
+        "--no-wandb",
+        action="store_true",
+        help="Disable Weights & Biases logging.",
+    )
+    p.add_argument(
+        "--wandb-project",
+        default=_default_wandb_project(),
+        help=(
+            f"W&B project (code default: {DEFAULT_WANDB_PROJECT!r}; override with WANDB_PROJECT in .env)."
+        ),
+    )
+    p.add_argument("--wandb-entity", default="", help="W&B entity/team (optional).")
+    p.add_argument("--wandb-run-name", default="", help="W&B run name (optional).")
+    p.add_argument(
+        "--wandb-log-images",
+        action="store_true",
+        help="Log a train image panel each --wandb-image-log-interval epochs (epoch 0 = first batch).",
+    )
+    p.add_argument(
+        "--wandb-image-log-interval",
+        type=int,
+        default=1,
+        help="When --wandb-log-images is set, every N epochs log train images (default: 1).",
+    )
+    p.add_argument(
+        "--wandb-max-images",
+        type=int,
+        default=8,
+        help="Max images per W&B panel when --wandb-log-images is set.",
     )
     p.add_argument("--hyperparams-file", type=str, default=DEFAULT_HYPERPARAMS_FILE)
     return p

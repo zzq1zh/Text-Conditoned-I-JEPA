@@ -51,6 +51,14 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
         default="",
         help="Optional base checkpoint path (overrides base_checkpoint / csp_base_checkpoint in JSON). Supports '{seed}' template.",
     )
+    p.add_argument("--no-wandb", action="store_true")
+    p.add_argument(
+        "--wandb-log-images",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Forward --wandb-log-images/--no-wandb-log-images to csp_vocab_train (default: on).",
+    )
+    p.add_argument("--wandb-max-images", type=int, default=8)
     p.add_argument("--dry-run", action="store_true")
     return p.parse_known_args()
 
@@ -149,6 +157,9 @@ def main() -> None:
         merged.get("base_checkpoint") or merged.get("csp_base_checkpoint") or ""
     ).strip()
     print(f"base_checkpoint_template: {base_ckpt_tpl or '<none>'}", flush=True)
+    print(f"no_wandb: {args.no_wandb}", flush=True)
+    print(f"wandb_log_images: {args.wandb_log_images}", flush=True)
+    print(f"wandb_max_images: {args.wandb_max_images}", flush=True)
     print(f"dry_run: {args.dry_run}", flush=True)
     if extra_args:
         print(f"extra_args: {' '.join(extra_args)}", flush=True)
@@ -187,6 +198,10 @@ def main() -> None:
         base_ckpt = _resolve_base_checkpoint(base_ckpt_tpl, seed)
         if base_ckpt:
             train_cmd.extend(["--base-checkpoint", base_ckpt])
+        if args.no_wandb:
+            train_cmd.append("--no-wandb")
+        elif args.wandb_log_images:
+            train_cmd.extend(["--wandb-log-images", "--wandb-max-images", str(args.wandb_max_images)])
         if extra_args:
             train_cmd.extend(extra_args)
 
