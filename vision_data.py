@@ -536,6 +536,9 @@ def load_vision_train_val_test_specs(
     For **csp_** and **cspref_** hub datasets, ``val_fraction`` and ``split_seed``
     are ignored: the published ``train`` / ``val`` / ``test`` splits are used directly
     (no merge of val into the test pool).
+
+    For **cspref_*** closed-world scoring, use :func:`csp_style_eval_allowed_class_indices`
+    so val eval uses train∪val candidates and test eval uses train∪test (see training/eval scripts).
     """
     if dataset_key not in DATASET_CONFIG:
         known = ", ".join(list_vision_dataset_keys())
@@ -604,6 +607,40 @@ def load_vision_train_val_test_specs(
         val=_build_spec_from_part(sub_val, class_names, label_key, max_val_samples),
         test=_build_spec_from_part(test_merged, class_names, label_key, max_test_samples),
     )
+
+
+def csp_style_eval_allowed_class_indices(
+    dataset_key: str,
+    tvt: VisionTrainTestVal,
+    eval_split: str,
+) -> list[int]:
+    """
+    For CSP-reference hub datasets (``cspref_*``), restrict closed-world candidates:
+
+    - ``eval_split == "val"``: classes that appear in **train** or **val** rows
+      (exclude test-only pair types from the softmax).
+    - ``eval_split == "test"``: classes that appear in **train** or **test** rows
+      (exclude val-only pair types).
+
+    For all other registry entries, returns ``range(num_classes)`` (no restriction).
+    """
+    if eval_split not in ("val", "test"):
+        raise ValueError(f"eval_split must be 'val' or 'test', got {eval_split!r}")
+    n = len(tvt.train.class_names)
+    cfg = DATASET_CONFIG.get(dataset_key) or {}
+    if cfg.get("loader") != "csp_ref_hub":
+        return list(range(n))
+    lk = tvt.train.label_key
+    ids_train = {int(x) for x in tvt.train.dataset.unique(lk)}
+    if eval_split == "val":
+        ids_other = {int(x) for x in tvt.val.dataset.unique(lk)}
+        allowed = sorted(ids_train | ids_other)
+    else:
+        ids_other = {int(x) for x in tvt.test.dataset.unique(lk)}
+        allowed = sorted(ids_train | ids_other)
+    if len(allowed) > n:
+        raise RuntimeError(f"Allowed class count {len(allowed)} exceeds num_classes {n}")
+    return allowed
 
 
 def load_vision_batch_spec(

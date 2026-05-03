@@ -134,8 +134,29 @@ def make_fixed_bank_forward(
     *,
     use_amp: bool,
     use_bidirectional_infonce: bool = True,
+    allowed_class_indices: list[int] | None = None,
 ) -> Callable[[dict[str, Any]], tuple[torch.Tensor, torch.Tensor | None]]:
     """Forward for eval when class text embeddings are precomputed in ``candidate_text_bank``."""
+
+    c_full = int(candidate_text_bank.size(0))
+    allowed_t: torch.Tensor | None
+    bank_sub: torch.Tensor | None
+    g2l: torch.Tensor | None
+    if allowed_class_indices is None:
+        allowed_t = None
+        bank_sub = None
+        g2l = None
+    else:
+        allowed_unique = sorted({int(i) for i in allowed_class_indices})
+        if any(i < 0 or i >= c_full for i in allowed_unique):
+            raise ValueError(
+                f"allowed_class_indices out of range [0,{c_full}); got min/max "
+                f"{min(allowed_unique)}/{max(allowed_unique)}"
+            )
+        allowed_t = torch.tensor(allowed_unique, dtype=torch.long, device=device)
+        bank_sub = candidate_text_bank.index_select(0, allowed_t)
+        g2l = torch.full((c_full,), -1, dtype=torch.long, device=device)
+        g2l[allowed_t] = torch.arange(allowed_t.numel(), device=device, dtype=torch.long)
 
     def forward_batch(
         batch: dict[str, Any],
@@ -148,10 +169,30 @@ def make_fixed_bank_forward(
             dtype=torch.float16,
         ):
             z = model.encode_image(pv)
-            logits = model.score_candidates(z, candidate_text_bank)
+            if allowed_t is None:
+                logits = model.score_candidates(z, candidate_text_bank)
+                pos_text = candidate_text_bank.index_select(0, y)
+            else:
+                assert bank_sub is not None and g2l is not None
+                y_loc = g2l[y]
+                if not (y_loc >= 0).all():
+                    raise RuntimeError(
+                        "Label id not in allowed_class_indices for this eval split "
+                        "(batch contains a class outside train∪val or train∪test)."
+                    )
+                logits_sub = model.score_candidates(z, bank_sub)
+                finfo_min = torch.finfo(logits_sub.dtype).min
+                mask_val = finfo_min / 2 if finfo_min > -3.4e38 else -3.4e38
+                logits = torch.full(
+                    (z.size(0), c_full),
+                    mask_val,
+                    device=z.device,
+                    dtype=logits_sub.dtype,
+                )
+                logits[:, allowed_t] = logits_sub
+                pos_text = bank_sub.index_select(0, y_loc)
             if not use_bidirectional_infonce:
                 raise RuntimeError("Only bidirectional_infonce loss is supported.")
-            pos_text = candidate_text_bank.index_select(0, y)
             pair_scores = model.score_candidates(z, pos_text)
             loss = clip_contrastive_loss(pair_scores)
         return logits, loss

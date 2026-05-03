@@ -1,6 +1,10 @@
 """
 Fine-tune the text-conditioning adapter + fusion head on a training split (I-JEPA frozen),
 with optional Weights & Biases logging.
+
+``--finetune-csp-vocab`` runs CSP-style compositional soft-prompt training (same objective and
+save format as ``csp_vocab_train.py``) while keeping the full ``TextConditionedIJepa`` frozen.
+
 By default uses a CUDA GPU when ``torch.cuda.is_available()``; pass ``--cpu`` or ``--device cpu`` otherwise.
 Default ``--batch-size`` / ``--num-workers`` / ``--log-interval`` assume a large GPU; reduce if OOM.
 """
@@ -44,6 +48,7 @@ from main import (  # noqa: E402
 from vision_data import (  # noqa: E402
     list_vision_dataset_keys,
     load_vision_train_val_test_specs,
+    csp_style_eval_allowed_class_indices,
     prompts_for_label_indices,
     set_seed,
 )
@@ -52,6 +57,13 @@ from csp_eval import (  # noqa: E402
     clip_contrastive_loss,
     eval_clip_style_classification,
     make_fixed_bank_forward,
+)
+from csp_vocab_train import (  # noqa: E402
+    CspCompositionVocab,
+    _default_save_from_base,
+    _load_base_checkpoint_if_any,
+    _make_csp_eval_forward,
+    build_csp_vocab_meta,
 )
 
 
@@ -151,6 +163,12 @@ HYPERPARAM_OVERRIDABLE_KEYS: frozenset[str] = frozenset(
         "text_bank_chunk_size",
         "max_grad_norm",
         "amp",
+        "finetune_csp_vocab",
+        "base_checkpoint",
+        "csp_context_length",
+        "csp_vocab_init",
+        "csp_attr_dropout",
+        "csp_pair_separator",
     }
 )
 
@@ -187,6 +205,12 @@ class TrainState:
     wandb_log_images: bool
     wandb_image_log_interval: int
     wandb_max_images: int
+    finetune_csp_vocab: bool = False
+    csp_context_length: int = 8
+    csp_vocab_init: str = "text"
+    csp_attr_dropout: float = 0.3
+    csp_pair_separator: str = " "
+    base_checkpoint: str = ""
 
 
 def _msamples(x: int) -> int | None:
@@ -698,6 +722,15 @@ def run_finetune(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
+    val_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, "val")
+    val_eval_allowed: list[int] | None = val_allowed if len(val_allowed) < n_classes else None
+    if val_eval_allowed is not None:
+        print(
+            f"Val eval: candidate softmax restricted to {len(val_allowed)}/{n_classes} classes "
+            "(train∪val pairs; excludes test-only on cspref_*).",
+            flush=True,
+        )
+
     params = [p for p in model.parameters() if p.requires_grad]
     if not params:
         raise RuntimeError("No trainable parameters; try --finetune-clip-text for CLIP text adapter + fusion")
@@ -903,6 +936,7 @@ def run_finetune(args: argparse.Namespace) -> None:
                 candidate_text_bank,
                 use_amp=(device.type == "cuda" and args.amp),
                 use_bidirectional_infonce=use_bidirectional_infonce,
+                allowed_class_indices=val_eval_allowed,
             ),
             modules_to_eval=(model,),
         )
@@ -955,6 +989,381 @@ def run_finetune(args: argparse.Namespace) -> None:
             f"Pushed trainable weights to Hub (I-JEPA backbone excluded: use ijepa_id from config to load it). {url}",
             flush=True,
         )
+
+
+def _default_csp_vocab_train_wandb_run_name(args: argparse.Namespace) -> str:
+    return (
+        f"csp-vocab-{args.dataset}-{args.fusion_type}-seed{args.seed}-{_wandb_model_suffix(args)}"
+    )
+
+
+def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
+    """
+    Train compositional attr/object soft prompts (CSP-style vocab) with a frozen TextConditionedIJepa.
+
+    Saves the same bundle dict as ``csp_vocab_train.py`` (``csp_vocab`` / ``meta`` / ``args``) to ``--save``.
+    """
+    if (args.hub_model_id or "").strip():
+        raise ValueError(
+            "--hub-model-id is not supported with --finetune-csp-vocab; save a bundle with --save instead."
+        )
+
+    set_seed(args.seed)
+    args.ijepa = resolve_vision_model_id(args.vision_backbone, args.ijepa)
+    device = _resolve_train_device(args)
+    if device.type == "cuda":
+        print(f"CSP vocab training on GPU: {torch.cuda.get_device_name(device.index or 0)}", flush=True)
+    else:
+        print("CSP vocab training on CPU.", flush=True)
+
+    tvt = load_vision_train_val_test_specs(
+        args.dataset,
+        val_fraction=args.val_fraction,
+        split_seed=args.split_seed,
+        max_train_samples=_msamples(int(args.max_train_samples)),
+        max_val_samples=_msamples(int(args.max_val_samples)),
+        max_test_samples=None,
+    )
+    n_classes = len(tvt.train.class_names)
+    train_ds = HfPilImageDataset(
+        tvt.train.dataset, tvt.train.image_column, tvt.train.label_key
+    )
+    val_ds = HfPilImageDataset(tvt.val.dataset, tvt.val.image_column, tvt.val.label_key)
+    if len(train_ds) == 0 or len(val_ds) == 0:
+        raise RuntimeError("Train or val split is empty. Check --max-train/val-samples and val-fraction")
+
+    im_proc = load_vision_processor(args.ijepa)
+    collate = make_collate_fn(im_proc)
+    _drop = len(train_ds) >= 2 * args.batch_size
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+        pin_memory=(device.type == "cuda"),
+        drop_last=_drop,
+    )
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+        pin_memory=(device.type == "cuda"),
+    )
+
+    val_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, "val")
+    val_eval_allowed: list[int] | None = val_allowed if len(val_allowed) < n_classes else None
+    if val_eval_allowed is not None:
+        print(
+            f"Val eval: candidate softmax restricted to {len(val_allowed)}/{n_classes} classes "
+            "(train∪val pairs; excludes test-only on cspref_*).",
+            flush=True,
+        )
+
+    model = TextConditionedIJepa(
+        num_labels=n_classes,
+        ijepa_id=args.ijepa,
+        clip_id=args.clip,
+        cond_dim=args.cond_dim,
+        fusion_hidden=args.fusion_hidden,
+        fusion_type=args.fusion_type,
+        freeze_text_encoder=True,
+    ).to(device)
+    _load_base_checkpoint_if_any(model, args.base_checkpoint)
+    model.eval()
+    model.backbone.eval()
+    for p in model.parameters():
+        p.requires_grad = False
+
+    tok = AutoTokenizer.from_pretrained(args.clip)
+    csp_meta = build_csp_vocab_meta(
+        tvt.train.class_names,
+        pair_separator=str(args.csp_pair_separator),
+    )
+    csp_vocab = CspCompositionVocab(
+        num_attrs=len(csp_meta.attrs),
+        num_objs=len(csp_meta.objs),
+        text_encoder=model.text_cond.text_encoder,
+        adapter=model.text_cond.adapter,
+        tokenizer=tok,
+        text_hidden_dim=int(model.text_cond.text_encoder.config.hidden_size),
+        cond_dim=int(args.cond_dim),
+        context_length=int(args.csp_context_length),
+        attr_dropout=float(args.csp_attr_dropout),
+    ).to(device)
+    for p in csp_vocab.parameters():
+        p.requires_grad = False
+    csp_vocab.attr_prompt.requires_grad = True
+    csp_vocab.obj_prompt.requires_grad = True
+    if args.csp_vocab_init == "text":
+        csp_vocab.init_from_label_text(csp_meta, tok)
+
+    params = [csp_vocab.attr_prompt, csp_vocab.obj_prompt]
+    opt = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
+    total_steps = max(int(args.epochs) * max(len(train_loader), 1), 1)
+    warmup_steps = min(max(int(round(total_steps * float(args.warmup_ratio))), 0), total_steps)
+    if args.scheduler_type == "none":
+        sched: torch.optim.lr_scheduler.LRScheduler | None = None
+        print("Scheduler: none (constant LR)", flush=True)
+    elif args.scheduler_type == "cosine":
+        min_lr_ratio = float(args.min_lr_ratio)
+        if not (0.0 <= min_lr_ratio <= 1.0):
+            raise ValueError(f"--min-lr-ratio must be in [0,1], got {args.min_lr_ratio}")
+
+        def _lr_factor(step: int) -> float:
+            s = int(step)
+            if warmup_steps > 0 and s < warmup_steps:
+                return float(s + 1) / float(warmup_steps)
+            denom = max(total_steps - warmup_steps, 1)
+            t = min(max((s - warmup_steps) / denom, 0.0), 1.0)
+            cosine = 0.5 * (1.0 + math.cos(math.pi * t))
+            return min_lr_ratio + (1.0 - min_lr_ratio) * cosine
+
+        sched = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=_lr_factor)
+        print(
+            f"Scheduler: cosine | total_steps={total_steps} warmup_steps={warmup_steps} "
+            f"min_lr_ratio={min_lr_ratio}",
+            flush=True,
+        )
+    else:
+        raise ValueError(f"Unsupported scheduler_type={args.scheduler_type!r}; choose none or cosine")
+
+    state = TrainState(
+        dataset_key=args.dataset,
+        ijepa_id=args.ijepa,
+        clip_id=args.clip,
+        val_fraction=args.val_fraction,
+        split_seed=args.split_seed,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        lr=args.lr,
+        scheduler_type=str(args.scheduler_type),
+        warmup_ratio=float(args.warmup_ratio),
+        min_lr_ratio=float(args.min_lr_ratio),
+        weight_decay=args.weight_decay,
+        max_grad_norm=args.max_grad_norm,
+        cond_dim=args.cond_dim,
+        fusion_hidden=args.fusion_hidden,
+        fusion_type=args.fusion_type,
+        text_template=args.text_template,
+        max_train_samples=args.max_train_samples,
+        max_val_samples=args.max_val_samples,
+        finetune_clip_text=False,
+        use_amp=bool(device.type == "cuda" and args.amp),
+        num_workers=args.num_workers,
+        seed=args.seed,
+        device=str(device),
+        device_arg=args.device,
+        wandb_log_images=bool(args.wandb_log_images),
+        wandb_image_log_interval=int(args.wandb_image_log_interval),
+        wandb_max_images=int(args.wandb_max_images),
+        finetune_csp_vocab=True,
+        csp_context_length=int(args.csp_context_length),
+        csp_vocab_init=str(args.csp_vocab_init),
+        csp_attr_dropout=float(args.csp_attr_dropout),
+        csp_pair_separator=str(args.csp_pair_separator),
+        base_checkpoint=str(args.base_checkpoint or ""),
+    )
+
+    use_wandb = not args.no_wandb
+    if use_wandb:
+        os.environ["WANDB_LOG_MODEL"] = "false"
+        import wandb
+
+        w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
+        if w_key:
+            wandb.login(key=w_key, relogin=True)
+        run_name = _resolve_wandb_run_name(
+            args.wandb_run_name,
+            _default_csp_vocab_train_wandb_run_name(args),
+        )
+        w = wandb.init(
+            project=args.wandb_project,
+            entity=args.wandb_entity or None,
+            name=run_name,
+            config={
+                **asdict(state),
+                "run_type": "text_cond_csp_vocab",
+            },
+        )
+    else:
+        w = None
+
+    global_step = 0
+    use_cuda_amp = device.type == "cuda" and args.amp
+    grad_scaler: torch.amp.GradScaler | None
+    if use_cuda_amp:
+        grad_scaler = torch.amp.GradScaler("cuda")
+    else:
+        grad_scaler = None
+    t0 = time.time()
+    use_amp_eval = device.type == "cuda" and bool(args.amp)
+
+    try:
+        for epoch in range(args.epochs):
+            csp_vocab.train()
+            csp_vocab.text_encoder.eval()
+            csp_vocab.adapter.eval()
+            pbar = tqdm(
+                train_loader,
+                desc=f"csp vocab train ep {epoch + 1}/{args.epochs}",
+                file=sys.stdout,
+            )
+            for batch_idx, batch in enumerate(pbar):
+                pv = batch["pixel_values"].to(device, non_blocking=True)
+                y = batch["labels"].to(device, non_blocking=True)
+                opt.zero_grad(set_to_none=True)
+                with torch.amp.autocast(
+                    device_type=device.type,
+                    enabled=use_cuda_amp,
+                    dtype=torch.float16,
+                ):
+                    candidate_text_bank = csp_vocab.compose_all_pairs(csp_meta, device=device)
+                    z = model.encode_image(pv)
+                    pos_text = candidate_text_bank.index_select(0, y)
+                    pair_scores = model.score_candidates(z, pos_text)
+                    loss = clip_contrastive_loss(pair_scores)
+                if grad_scaler is not None:
+                    grad_scaler.scale(loss).backward()
+                else:
+                    loss.backward()
+                if args.max_grad_norm > 0:
+                    if grad_scaler is not None:
+                        grad_scaler.unscale_(opt)
+                    torch.nn.utils.clip_grad_norm_(params, args.max_grad_norm)
+                if grad_scaler is not None:
+                    grad_scaler.step(opt)
+                    grad_scaler.update()
+                else:
+                    opt.step()
+                if sched is not None:
+                    sched.step()
+
+                log_this_batch = (batch_idx % args.log_interval) == 0
+                img_this_batch = bool(
+                    use_wandb
+                    and w is not None
+                    and args.wandb_log_images
+                    and int(args.wandb_image_log_interval) > 0
+                    and ((epoch + 1) % int(args.wandb_image_log_interval) == 0)
+                    and batch_idx == 0
+                )
+                if log_this_batch or img_this_batch:
+                    with torch.inference_mode():
+                        full_logits = model.score_candidates(z, candidate_text_bank)
+                        pred = full_logits.argmax(-1)
+                        batch_acc = float((pred == y).float().mean().item())
+                else:
+                    pred = None
+                    batch_acc = 0.0
+
+                if log_this_batch:
+                    pbar.set_postfix(loss=f"{float(loss.detach()):.3f}", acc=f"{batch_acc:.3f}")
+
+                if use_wandb and w is not None:
+                    import wandb
+
+                    log_d: dict[str, Any] = {}
+                    if log_this_batch:
+                        log_d.update(
+                            {
+                                "train/loss": float(loss.item()),
+                                "train/batch_acc": batch_acc,
+                                "train/lr": opt.param_groups[0]["lr"],
+                                "time_elapsed_s": time.time() - t0,
+                            }
+                        )
+                    if img_this_batch and pred is not None:
+                        log_d["train/images"] = _make_wandb_images(
+                            pv,
+                            y,
+                            pred,
+                            max_images=int(args.wandb_max_images),
+                            class_names=tvt.train.class_names,
+                        )
+                    if log_d:
+                        wandb.log(log_d, step=global_step)
+
+                global_step += 1
+
+            (
+                val_loss,
+                val_top1,
+                val_top5,
+                val_auc_csp,
+                val_seen_top1,
+                val_seen_top5,
+                val_unseen_top1,
+                val_unseen_top5,
+            ) = eval_clip_style_classification(
+                val_loader,
+                device,
+                num_classes=n_classes,
+                use_amp=use_amp_eval,
+                forward_batch=_make_csp_eval_forward(
+                    model,
+                    csp_vocab,
+                    csp_meta,
+                    device,
+                    use_amp=use_amp_eval,
+                    allowed_class_indices=val_eval_allowed,
+                ),
+                modules_to_eval=(model, csp_vocab),
+            )
+            print(
+                f"Epoch {epoch + 1}/{args.epochs}  val_loss={val_loss:.4f}  "
+                f"val_top1={val_top1 * 100:.2f}%  val_top5={val_top5 * 100:.2f}%  "
+                f"seen_top1={val_seen_top1 * 100:.2f}%  seen_top5={val_seen_top5 * 100:.2f}%  "
+                f"unseen_top1={val_unseen_top1 * 100:.2f}%  unseen_top5={val_unseen_top5 * 100:.2f}%  "
+                f"auc_csp_style={val_auc_csp:.4f}  steps={global_step}",
+                flush=True,
+            )
+
+            if use_wandb and w is not None:
+                import wandb
+
+                wandb.log(
+                    {
+                        "epoch": epoch,
+                        "val/loss": val_loss,
+                        "val/acc@1": val_top1,
+                        "val/acc@5": val_top5,
+                        "val/auc_csp_style": val_auc_csp,
+                        "val/seen_acc@1": val_seen_top1,
+                        "val/seen_acc@5": val_seen_top5,
+                        "val/unseen_acc@1": val_unseen_top1,
+                        "val/unseen_acc@5": val_unseen_top5,
+                    },
+                    step=global_step,
+                )
+
+        out_path = (args.save or "").strip()
+        if out_path:
+            out = {
+                "csp_vocab": csp_vocab.state_dict(),
+                "meta": {
+                    "attrs": csp_meta.attrs,
+                    "objs": csp_meta.objs,
+                    "pairs": csp_meta.pairs,
+                    "pair_attr_idx": csp_meta.pair_attr_idx.cpu(),
+                    "pair_obj_idx": csp_meta.pair_obj_idx.cpu(),
+                    "pair_separator": csp_meta.pair_separator,
+                },
+                "args": vars(args),
+            }
+            torch.save(out, out_path)
+            print(f"Saved CSP vocab bundle to {out_path}", flush=True)
+            if use_wandb and w is not None:
+                import wandb
+
+                wandb.log({"artifact/save_path": str(out_path)}, step=global_step)
+    finally:
+        if use_wandb and w is not None:
+            import wandb
+
+            wandb.finish()
 
 
 def run_eval_only(args: argparse.Namespace) -> None:
@@ -1054,6 +1463,16 @@ def run_eval_only(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
+    eval_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, args.eval_split)
+    eval_allowed_arg: list[int] | None = eval_allowed if len(eval_allowed) < n_classes else None
+    if eval_allowed_arg is not None:
+        split_tag = "train∪val" if args.eval_split == "val" else "train∪test"
+        print(
+            f"Eval: candidate softmax restricted to {len(eval_allowed)}/{n_classes} classes "
+            f"({split_tag} on cspref_*).",
+            flush=True,
+        )
+
     (
         loss,
         top1,
@@ -1074,6 +1493,7 @@ def run_eval_only(args: argparse.Namespace) -> None:
             candidate_text_bank,
             use_amp=(device.type == "cuda" and args.amp),
             use_bidirectional_infonce=True,
+            allowed_class_indices=eval_allowed_arg,
         ),
         modules_to_eval=(model,),
     )
@@ -1259,6 +1679,47 @@ def build_parser() -> argparse.ArgumentParser:
         help="Unfreeze CLIP text encoder in addition to adapter+fusion (heavier, needs more VRAM)",
     )
     p.add_argument(
+        "--finetune-csp-vocab",
+        action="store_true",
+        help=(
+            "Train only CSP-style compositional soft prompts (attr/object tables); freezes the full "
+            "TextConditionedIJepa. Saves a bundle {csp_vocab, meta, args} to --save (same format as "
+            "csp_vocab_train.py). Use --base-checkpoint to load a pretrained adapter+fusion first."
+        ),
+    )
+    p.add_argument(
+        "--base-checkpoint",
+        default="",
+        help=(
+            "Optional TextConditionedIJepa state_dict for --finetune-csp-vocab (strict=False; "
+            "same semantics as csp_vocab_train --base-checkpoint)."
+        ),
+    )
+    p.add_argument(
+        "--csp-context-length",
+        type=int,
+        default=8,
+        help="Total soft-prompt tokens per composed pair for --finetune-csp-vocab (split attr/object).",
+    )
+    p.add_argument(
+        "--csp-vocab-init",
+        choices=("random", "text"),
+        default="text",
+        help="Initialize compositional prompts for --finetune-csp-vocab.",
+    )
+    p.add_argument(
+        "--csp-attr-dropout",
+        type=float,
+        default=0.3,
+        help="Attr-side dropout on soft prompts during --finetune-csp-vocab training.",
+    )
+    p.add_argument(
+        "--csp-pair-separator",
+        type=str,
+        default=" ",
+        help="Separator between attr and object in class names for --finetune-csp-vocab (e.g. space).",
+    )
+    p.add_argument(
         "--device",
         type=str,
         default="auto",
@@ -1378,8 +1839,14 @@ def main() -> None:
     argv = sys.argv[1:]
     args = build_parser().parse_args(argv)
     _apply_hyperparams_from_file(args, argv)
+    if args.finetune_csp_vocab and args.finetune_clip_text:
+        raise ValueError("Cannot combine --finetune-csp-vocab with --finetune-clip-text.")
     if args.eval_only:
         run_eval_only(args)
+    elif args.finetune_csp_vocab:
+        if not _arg_was_explicit(argv, "save"):
+            args.save = _default_save_from_base(args.base_checkpoint)
+        run_finetune_csp_vocab(args)
     else:
         run_finetune(args)
 

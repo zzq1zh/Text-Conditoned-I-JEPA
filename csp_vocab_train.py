@@ -43,6 +43,7 @@ from main import (  # noqa: E402
 from vision_data import (  # noqa: E402
     list_vision_dataset_keys,
     load_vision_train_val_test_specs,
+    csp_style_eval_allowed_class_indices,
     set_seed,
 )
 
@@ -581,8 +582,26 @@ def _make_csp_eval_forward(
     device: torch.device,
     *,
     use_amp: bool,
+    allowed_class_indices: list[int] | None = None,
 ) -> Callable[[dict[str, Any]], tuple[torch.Tensor, torch.Tensor | None]]:
     """Per-batch forward for :func:`eval_clip_style_classification` (composed text bank + contrastive loss)."""
+
+    c_full = len(csp_meta.pairs)
+    allowed_t: torch.Tensor | None
+    g2l: torch.Tensor | None
+    if allowed_class_indices is None:
+        allowed_t = None
+        g2l = None
+    else:
+        allowed_unique = sorted({int(i) for i in allowed_class_indices})
+        if any(i < 0 or i >= c_full for i in allowed_unique):
+            raise ValueError(
+                f"allowed_class_indices out of range [0,{c_full}); got "
+                f"{min(allowed_unique)}/{max(allowed_unique)}"
+            )
+        allowed_t = torch.tensor(allowed_unique, dtype=torch.long, device=device)
+        g2l = torch.full((c_full,), -1, dtype=torch.long, device=device)
+        g2l[allowed_t] = torch.arange(allowed_t.numel(), device=device, dtype=torch.long)
 
     def forward_batch(
         batch: dict[str, Any],
@@ -596,10 +615,30 @@ def _make_csp_eval_forward(
         ):
             candidate_text_bank = csp_vocab.compose_all_pairs(csp_meta, device=device)
             z = model.encode_image(pv)
-            logits = model.score_candidates(z, candidate_text_bank)
-            pos_text = candidate_text_bank.index_select(0, y)
-            pair_scores = model.score_candidates(z, pos_text)
-            loss = clip_contrastive_loss(pair_scores)
+            if allowed_t is None:
+                logits = model.score_candidates(z, candidate_text_bank)
+                pos_text = candidate_text_bank.index_select(0, y)
+            else:
+                assert g2l is not None
+                y_loc = g2l[y]
+                if not (y_loc >= 0).all():
+                    raise RuntimeError(
+                        "Label id not in allowed_class_indices for this eval split "
+                        "(batch contains a class outside train∪val or train∪test)."
+                    )
+                bank_sub = candidate_text_bank.index_select(0, allowed_t)
+                logits_sub = model.score_candidates(z, bank_sub)
+                finfo_min = torch.finfo(logits_sub.dtype).min
+                mask_val = finfo_min / 2 if finfo_min > -3.4e38 else -3.4e38
+                logits = torch.full(
+                    (z.size(0), c_full),
+                    mask_val,
+                    device=z.device,
+                    dtype=logits_sub.dtype,
+                )
+                logits[:, allowed_t] = logits_sub
+                pos_text = bank_sub.index_select(0, y_loc)
+            loss = clip_contrastive_loss(model.score_candidates(z, pos_text))
         return logits, loss
 
     return forward_batch
@@ -743,6 +782,14 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
     csp_vocab.eval()
 
     use_amp_eval = device.type == "cuda" and bool(args.amp)
+    eval_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, args.eval_split)
+    eval_allowed_arg: list[int] | None = eval_allowed if len(eval_allowed) < n_classes else None
+    if eval_allowed_arg is not None:
+        split_tag = "train∪val" if args.eval_split == "val" else "train∪test"
+        print(
+            f"CSP ref eval: {len(eval_allowed)}/{n_classes} candidate classes ({split_tag}).",
+            flush=True,
+        )
     (
         loss,
         top1,
@@ -763,6 +810,7 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
             csp_meta,
             device,
             use_amp=use_amp_eval,
+            allowed_class_indices=eval_allowed_arg,
         ),
         modules_to_eval=(model, csp_vocab),
     )
@@ -900,6 +948,15 @@ def run_post_training(args: argparse.Namespace) -> None:
         collate_fn=collate,
         pin_memory=(device.type == "cuda"),
     )
+
+    val_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, "val")
+    val_eval_allowed: list[int] | None = val_allowed if len(val_allowed) < n_classes else None
+    if val_eval_allowed is not None:
+        print(
+            f"Val eval: candidate softmax restricted to {len(val_allowed)}/{n_classes} classes "
+            "(train∪val pairs; excludes test-only on cspref_*).",
+            flush=True,
+        )
 
     model = TextConditionedIJepa(
         num_labels=n_classes,
@@ -1126,6 +1183,7 @@ def run_post_training(args: argparse.Namespace) -> None:
                     csp_meta,
                     device,
                     use_amp=bool(args.amp),
+                    allowed_class_indices=val_eval_allowed,
                 ),
                 modules_to_eval=(model, csp_vocab),
             )
