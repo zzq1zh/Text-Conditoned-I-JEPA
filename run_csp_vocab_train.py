@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """
 Unified launcher for CSP vocabulary post-training across seeds.
+
+Mirrors ``run_text_cond_train.py``: reads ``hyperparameters.json`` (defaults →
+``models.<backbone>`` → ``datasets.<dataset>`` → ``model_dataset``) for the
+full training config. The spawned ``csp_vocab_train.py`` process gets the same
+file and applies any keys not overridden on the command line (e.g.
+``max_grad_norm``, ``num_workers``, schedulers, CSP soft-prompt fields).
 """
 
 from __future__ import annotations
@@ -43,7 +49,7 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     p.add_argument(
         "--base-checkpoint",
         default="",
-        help="Optional base checkpoint path. Supports '{seed}' template.",
+        help="Optional base checkpoint path (overrides base_checkpoint / csp_base_checkpoint in JSON). Supports '{seed}' template.",
     )
     p.add_argument("--dry-run", action="store_true")
     return p.parse_known_args()
@@ -64,6 +70,11 @@ def _merged_hparams(cfg: dict[str, Any], backbone: str, dataset: str) -> dict[st
     ):
         if isinstance(src, dict):
             merged.update(src)
+    md = cfg.get("model_dataset", {})
+    if isinstance(md, dict):
+        by_model = md.get(backbone, {})
+        if isinstance(by_model, dict) and isinstance(by_model.get(dataset), dict):
+            merged.update(by_model[dataset])
     return merged
 
 
@@ -134,7 +145,10 @@ def main() -> None:
     print(f"max_grad_norm: {max_grad_norm}", flush=True)
     print(f"fusion_type: {fusion_type}", flush=True)
     print(f"seed_list: {','.join(seeds)}", flush=True)
-    print(f"base_checkpoint_template: {args.base_checkpoint or '<none>'}", flush=True)
+    base_ckpt_tpl = (args.base_checkpoint or "").strip() or str(
+        merged.get("base_checkpoint") or merged.get("csp_base_checkpoint") or ""
+    ).strip()
+    print(f"base_checkpoint_template: {base_ckpt_tpl or '<none>'}", flush=True)
     print(f"dry_run: {args.dry_run}", flush=True)
     if extra_args:
         print(f"extra_args: {' '.join(extra_args)}", flush=True)
@@ -163,8 +177,6 @@ def main() -> None:
             str(lr),
             "--weight-decay",
             str(weight_decay),
-            "--max-grad-norm",
-            str(max_grad_norm),
             "--seed",
             str(seed),
             "--hyperparams-file",
@@ -172,7 +184,7 @@ def main() -> None:
             "--save",
             ckpt,
         ]
-        base_ckpt = _resolve_base_checkpoint(args.base_checkpoint, seed)
+        base_ckpt = _resolve_base_checkpoint(base_ckpt_tpl, seed)
         if base_ckpt:
             train_cmd.extend(["--base-checkpoint", base_ckpt])
         if extra_args:
