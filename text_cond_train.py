@@ -2,8 +2,8 @@
 Fine-tune the text-conditioning adapter + fusion head on a training split (I-JEPA frozen),
 with optional Weights & Biases logging.
 
-``--finetune-csp-vocab`` runs CSP-style compositional soft-prompt training (same objective and
-save format as ``csp_vocab_train.py``) while keeping the full ``TextConditionedIJepa`` frozen.
+``--save`` writes a dict with ``csp_vocab``, ``adapter``, ``fusion``, ``meta``, and ``args``
+(``csp_vocab_train`` / ``--eval-only`` load ``adapter``/``fusion`` when present).
 
 By default uses a CUDA GPU when ``torch.cuda.is_available()``; pass ``--cpu`` or ``--device cpu`` otherwise.
 Default ``--batch-size`` / ``--num-workers`` / ``--log-interval`` assume a large GPU; reduce if OOM.
@@ -46,9 +46,10 @@ from main import (  # noqa: E402
     resolve_vision_model_id,
 )
 from vision_data import (  # noqa: E402
+    csp_style_eval_allowed_class_indices,
+    csp_vocab_allowed_class_indices,
     list_vision_dataset_keys,
     load_vision_train_val_test_specs,
-    csp_style_eval_allowed_class_indices,
     prompts_for_label_indices,
     set_seed,
 )
@@ -999,9 +1000,10 @@ def _default_csp_vocab_train_wandb_run_name(args: argparse.Namespace) -> str:
 
 def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
     """
-    Train compositional attr/object soft prompts (CSP-style vocab) with a frozen TextConditionedIJepa.
+    Train compositional attr/object soft prompts (CSP-style vocab); vision + CLIP text encoder frozen.
 
-    Saves the same bundle dict as ``csp_vocab_train.py`` (``csp_vocab`` / ``meta`` / ``args``) to ``--save``.
+    Saves a bundle dict to ``--save``: ``csp_vocab``, ``adapter``, ``fusion``, ``meta``, ``args``
+    (same layout as ``csp_vocab_train.py`` post-training artifact).
     """
     if (args.hub_model_id or "").strip():
         raise ValueError(
@@ -1053,12 +1055,19 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
-    val_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, "val")
+    val_allowed = csp_vocab_allowed_class_indices(tvt, "val")
     val_eval_allowed: list[int] | None = val_allowed if len(val_allowed) < n_classes else None
+    train_allowed = csp_vocab_allowed_class_indices(tvt, "train")
+    if len(train_allowed) < n_classes:
+        print(
+            f"Train: composed pair bank uses {len(train_allowed)}/{n_classes} classes "
+            "(labels that appear in train rows only).",
+            flush=True,
+        )
     if val_eval_allowed is not None:
         print(
             f"Val eval: candidate softmax restricted to {len(val_allowed)}/{n_classes} classes "
-            "(train∪val pairs; excludes test-only on cspref_*).",
+            "(train ∪ val label union).",
             flush=True,
         )
 
@@ -1072,10 +1081,16 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
         freeze_text_encoder=True,
     ).to(device)
     _load_base_checkpoint_if_any(model, args.base_checkpoint)
-    model.eval()
     model.backbone.eval()
-    for p in model.parameters():
+    for p in model.backbone.parameters():
         p.requires_grad = False
+    model.text_cond.text_encoder.eval()
+    for p in model.text_cond.text_encoder.parameters():
+        p.requires_grad = False
+    for p in model.text_cond.adapter.parameters():
+        p.requires_grad = True
+    for p in model.fusion.parameters():
+        p.requires_grad = True
 
     tok = AutoTokenizer.from_pretrained(args.clip)
     csp_meta = build_csp_vocab_meta(
@@ -1100,7 +1115,14 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
     if args.csp_vocab_init == "text":
         csp_vocab.init_from_label_text(csp_meta, tok)
 
-    params = [csp_vocab.attr_prompt, csp_vocab.obj_prompt]
+    trainable_txt = [p for p in model.text_cond.adapter.parameters() if p.requires_grad]
+    trainable_fusion = [p for p in model.fusion.parameters() if p.requires_grad]
+    params = [csp_vocab.attr_prompt, csp_vocab.obj_prompt, *trainable_txt, *trainable_fusion]
+    print(
+        "CSP vocab: training attr/obj prompts + text adapter + fusion "
+        "(vision backbone + CLIP text encoder frozen).",
+        flush=True,
+    )
     opt = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
     total_steps = max(int(args.epochs) * max(len(train_loader), 1), 1)
     warmup_steps = min(max(int(round(total_steps * float(args.warmup_ratio))), 0), total_steps)
@@ -1201,11 +1223,21 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
     t0 = time.time()
     use_amp_eval = device.type == "cuda" and bool(args.amp)
 
+    train_allowed_t = torch.tensor(train_allowed, dtype=torch.long)
+    g2l_train = torch.full((n_classes,), -1, dtype=torch.long)
+    g2l_train[train_allowed_t] = torch.arange(train_allowed_t.numel())
+    g2l_train = g2l_train.to(device)
+    train_allowed_dev = train_allowed_t.to(device)
+
     try:
         for epoch in range(args.epochs):
+            model.backbone.eval()
+            model.text_cond.text_encoder.eval()
+            model.text_cond.adapter.train()
+            model.fusion.train()
             csp_vocab.train()
             csp_vocab.text_encoder.eval()
-            csp_vocab.adapter.eval()
+            csp_vocab.adapter.train()
             pbar = tqdm(
                 train_loader,
                 desc=f"csp vocab train ep {epoch + 1}/{args.epochs}",
@@ -1220,9 +1252,17 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
                     enabled=use_cuda_amp,
                     dtype=torch.float16,
                 ):
-                    candidate_text_bank = csp_vocab.compose_all_pairs(csp_meta, device=device)
+                    candidate_text_bank = csp_vocab.compose_pair_indices(
+                        csp_meta, train_allowed_t, device=device
+                    )
                     z = model.encode_image(pv)
-                    pos_text = candidate_text_bank.index_select(0, y)
+                    y_loc = g2l_train[y]
+                    if not (y_loc >= 0).all():
+                        raise RuntimeError(
+                            "Train batch contains a label outside csp_vocab_allowed_class_indices "
+                            "(train-only pool); check data vs allowed set."
+                        )
+                    pos_text = candidate_text_bank.index_select(0, y_loc)
                     pair_scores = model.score_candidates(z, pos_text)
                     loss = clip_contrastive_loss(pair_scores)
                 if grad_scaler is not None:
@@ -1253,7 +1293,8 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
                 if log_this_batch or img_this_batch:
                     with torch.inference_mode():
                         full_logits = model.score_candidates(z, candidate_text_bank)
-                        pred = full_logits.argmax(-1)
+                        pred_local = full_logits.argmax(-1)
+                        pred = train_allowed_dev.index_select(0, pred_local)
                         batch_acc = float((pred == y).float().mean().item())
                 else:
                     pred = None
@@ -1343,6 +1384,8 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
         if out_path:
             out = {
                 "csp_vocab": csp_vocab.state_dict(),
+                "adapter": model.text_cond.adapter.state_dict(),
+                "fusion": model.fusion.state_dict(),
                 "meta": {
                     "attrs": csp_meta.attrs,
                     "objs": csp_meta.objs,
@@ -1463,13 +1506,13 @@ def run_eval_only(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
-    eval_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, args.eval_split)
+    eval_allowed = csp_vocab_allowed_class_indices(tvt, args.eval_split)
     eval_allowed_arg: list[int] | None = eval_allowed if len(eval_allowed) < n_classes else None
     if eval_allowed_arg is not None:
         split_tag = "train∪val" if args.eval_split == "val" else "train∪test"
         print(
             f"Eval: candidate softmax restricted to {len(eval_allowed)}/{n_classes} classes "
-            f"({split_tag} on cspref_*).",
+            f"({split_tag} label union from data).",
             flush=True,
         )
 
@@ -1682,9 +1725,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--finetune-csp-vocab",
         action="store_true",
         help=(
-            "Train only CSP-style compositional soft prompts (attr/object tables); freezes the full "
-            "TextConditionedIJepa. Saves a bundle {csp_vocab, meta, args} to --save (same format as "
-            "csp_vocab_train.py). Use --base-checkpoint to load a pretrained adapter+fusion first."
+            "Train CSP compositional soft prompts (attr/object) plus the text adapter and fusion head; "
+            "keeps the vision backbone and CLIP text encoder frozen. Saves a bundle {csp_vocab, meta, args} "
+            "to --save (same format as csp_vocab_train.py). Use --base-checkpoint to load pretrained "
+            "adapter+fusion weights."
         ),
     )
     p.add_argument(

@@ -643,6 +643,38 @@ def csp_style_eval_allowed_class_indices(
     return allowed
 
 
+def csp_vocab_allowed_class_indices(tvt: VisionTrainTestVal, role: str) -> list[int]:
+    """
+    Global class indices allowed in the **composed pair bank** for CSP vocab training/eval:
+
+    - ``role == "train"``: labels that appear in **train** rows only.
+    - ``role == "val"``: labels that appear in **train** or **val** rows.
+    - ``role == "test"``: labels that appear in **train** or **test** rows.
+
+    Uses ``tvt.train.label_key`` on each split (shared ``ClassLabel`` order across splits).
+
+    This is the data-driven rule used by ``csp_vocab_train`` for restricting
+    ``compose_*`` / contrastive candidates; it generalizes the former ``cspref_*``-only
+    ``csp_style_eval_allowed_class_indices`` pattern to any dataset.
+    """
+    if role not in ("train", "val", "test"):
+        raise ValueError(f"role must be 'train', 'val', or 'test', got {role!r}")
+    n = len(tvt.train.class_names)
+    lk = tvt.train.label_key
+    ids_train = {int(x) for x in tvt.train.dataset.unique(lk)}
+    if role == "train":
+        allowed = sorted(ids_train)
+    elif role == "val":
+        ids_other = {int(x) for x in tvt.val.dataset.unique(lk)}
+        allowed = sorted(ids_train | ids_other)
+    else:
+        ids_other = {int(x) for x in tvt.test.dataset.unique(lk)}
+        allowed = sorted(ids_train | ids_other)
+    if len(allowed) > n:
+        raise RuntimeError(f"Allowed class count {len(allowed)} exceeds num_classes {n}")
+    return allowed
+
+
 def load_vision_batch_spec(
     dataset_key: str,
     split: str = "test",

@@ -1,10 +1,10 @@
 """
 Standalone post-training for CSP-style compositional vocabulary.
 
-This script is intentionally self-contained:
-- no dependency on ``text_cond_train.py`` or ``csp_vocab.py``
-- shares validation metrics with ``text_cond_train`` through ``csp_eval``
-- trains only CSP attr/object embeddings while freezing TextConditionedIJepa
+Saved ``.pt`` dict bundles include (where applicable):
+
+- ``csp_vocab``, ``meta``, ``args`` — always
+- ``adapter``, ``fusion`` — :class:`TextConditionedIJepa` head weights (same as ``text_cond_train --finetune-csp-vocab``); eval loads them over ``--base-checkpoint`` when present
 """
 
 from __future__ import annotations
@@ -41,9 +41,9 @@ from main import (  # noqa: E402
     resolve_vision_model_id,
 )
 from vision_data import (  # noqa: E402
+    csp_vocab_allowed_class_indices,
     list_vision_dataset_keys,
     load_vision_train_val_test_specs,
-    csp_style_eval_allowed_class_indices,
     set_seed,
 )
 
@@ -532,6 +532,22 @@ class CspCompositionVocab(nn.Module):
         dev = self.attr_prompt.device if device is None else torch.device(device)
         return self.compose(meta.pair_attr_idx.to(dev), meta.pair_obj_idx.to(dev))
 
+    def compose_pair_indices(
+        self,
+        meta: CspVocabMeta,
+        pair_row_indices: torch.Tensor,
+        *,
+        device: torch.device | str | None = None,
+    ) -> torch.Tensor:
+        """
+        Embed only selected global pair rows (indices into ``meta.pairs``, shape (K,)).
+        """
+        dev = self.attr_prompt.device if device is None else torch.device(device)
+        idx = pair_row_indices.detach().cpu().long().view(-1)
+        attr = meta.pair_attr_idx.index_select(0, idx).to(dev)
+        obj = meta.pair_obj_idx.index_select(0, idx).to(dev)
+        return self.compose(attr, obj)
+
     @torch.inference_mode()
     def init_from_label_text(self, meta: CspVocabMeta, tokenizer: Any) -> None:
         token_embed = self.text_encoder.get_input_embeddings().weight.detach().float().cpu()
@@ -765,6 +781,12 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
     model.backbone.eval()
     for p in model.parameters():
         p.requires_grad = False
+    ad = bundle.get("adapter")
+    fu = bundle.get("fusion")
+    if isinstance(ad, dict):
+        model.text_cond.adapter.load_state_dict(ad, strict=True)
+    if isinstance(fu, dict):
+        model.fusion.load_state_dict(fu, strict=True)
 
     tok = AutoTokenizer.from_pretrained(args.clip)
     csp_vocab = CspCompositionVocab(
@@ -782,12 +804,12 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
     csp_vocab.eval()
 
     use_amp_eval = device.type == "cuda" and bool(args.amp)
-    eval_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, args.eval_split)
+    eval_allowed = csp_vocab_allowed_class_indices(tvt, args.eval_split)
     eval_allowed_arg: list[int] | None = eval_allowed if len(eval_allowed) < n_classes else None
     if eval_allowed_arg is not None:
         split_tag = "train∪val" if args.eval_split == "val" else "train∪test"
         print(
-            f"CSP ref eval: {len(eval_allowed)}/{n_classes} candidate classes ({split_tag}).",
+            f"Eval: candidate softmax uses {len(eval_allowed)}/{n_classes} classes ({split_tag} label union).",
             flush=True,
         )
     (
@@ -949,12 +971,19 @@ def run_post_training(args: argparse.Namespace) -> None:
         pin_memory=(device.type == "cuda"),
     )
 
-    val_allowed = csp_style_eval_allowed_class_indices(args.dataset, tvt, "val")
+    val_allowed = csp_vocab_allowed_class_indices(tvt, "val")
     val_eval_allowed: list[int] | None = val_allowed if len(val_allowed) < n_classes else None
+    train_allowed = csp_vocab_allowed_class_indices(tvt, "train")
+    if len(train_allowed) < n_classes:
+        print(
+            f"Train: composed pair bank uses {len(train_allowed)}/{n_classes} classes "
+            "(labels that appear in train rows only).",
+            flush=True,
+        )
     if val_eval_allowed is not None:
         print(
             f"Val eval: candidate softmax restricted to {len(val_allowed)}/{n_classes} classes "
-            "(train∪val pairs; excludes test-only on cspref_*).",
+            "(train ∪ val label union).",
             flush=True,
         )
 
@@ -1073,6 +1102,12 @@ def run_post_training(args: argparse.Namespace) -> None:
             config=wandb_config,
         )
 
+    train_allowed_t = torch.tensor(train_allowed, dtype=torch.long)
+    g2l_train = torch.full((n_classes,), -1, dtype=torch.long)
+    g2l_train[train_allowed_t] = torch.arange(train_allowed_t.numel())
+    g2l_train = g2l_train.to(device)
+    train_allowed_dev = train_allowed_t.to(device)
+
     try:
         for epoch in range(int(args.epochs)):
             csp_vocab.train()
@@ -1095,9 +1130,17 @@ def run_post_training(args: argparse.Namespace) -> None:
                     enabled=use_cuda_amp,
                     dtype=torch.float16,
                 ):
-                    candidate_text_bank = csp_vocab.compose_all_pairs(csp_meta, device=device)
+                    candidate_text_bank = csp_vocab.compose_pair_indices(
+                        csp_meta, train_allowed_t, device=device
+                    )
                     z = model.encode_image(pv)
-                    pos_text = candidate_text_bank.index_select(0, y)
+                    y_loc = g2l_train[y]
+                    if not (y_loc >= 0).all():
+                        raise RuntimeError(
+                            "Train batch contains a label outside csp_vocab_allowed_class_indices "
+                            "(train-only pool); check data vs allowed set."
+                        )
+                    pos_text = candidate_text_bank.index_select(0, y_loc)
                     pair_scores = model.score_candidates(z, pos_text)
                     loss = clip_contrastive_loss(pair_scores)
                 if grad_scaler is not None:
@@ -1128,7 +1171,8 @@ def run_post_training(args: argparse.Namespace) -> None:
                 if log_this_batch or img_this_batch:
                     with torch.inference_mode():
                         full_logits = model.score_candidates(z, candidate_text_bank)
-                        pred = full_logits.argmax(-1)
+                        pred_local = full_logits.argmax(-1)
+                        pred = train_allowed_dev.index_select(0, pred_local)
                         batch_acc = float((pred == y).float().mean().item())
                 else:
                     pred = None
@@ -1217,6 +1261,8 @@ def run_post_training(args: argparse.Namespace) -> None:
         if args.save and args.save.strip():
             out = {
                 "csp_vocab": csp_vocab.state_dict(),
+                "adapter": model.text_cond.adapter.state_dict(),
+                "fusion": model.fusion.state_dict(),
                 "meta": {
                     "attrs": csp_meta.attrs,
                     "objs": csp_meta.objs,
