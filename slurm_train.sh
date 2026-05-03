@@ -22,25 +22,28 @@ cd "$SLURM_SUBMIT_DIR"
 
 source ~/.local/bin/env
 
-# Select target by args or environment variables.
+# Select target and dataset by args or environment variables.
 # Usage examples:
-#   sbatch slurm_train.sh dinov3
-#   TRAIN_TARGET=vjepa sbatch slurm_train.sh
-#   sbatch slurm_train.sh two_fusions
+#   sbatch slurm_train.sh dinov3 cspref_mit_states
+#   sbatch slurm_train.sh ijepa cspref_ut_zappos
+#   sbatch slurm_train.sh vjepa cspref_cgqa
+#   TRAIN_TARGET=vjepa TRAIN_DATASET=cspref_ut_zappos sbatch slurm_train.sh
+#   sbatch slurm_train.sh two_fusions cspref_mit_states
 TARGET="${1:-${TRAIN_TARGET:-two_fusions}}"
+DATASET="${2:-${TRAIN_DATASET:-cspref_mit_states}}"
 
 case "${TARGET}" in
   two_fusions|two-stage|two_stage)
     TRAIN_CMD=(bash train_two_fusions_and_push.sh)
     ;;
   dinov3|dino)
-    TRAIN_CMD=(uv run python run_experiments.py)
+    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone dinov3 --dataset "${DATASET}")
     ;;
   ijepa|i-jepa)
-    TRAIN_CMD=(uv run python run_experiments.py)
+    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone ijepa --dataset "${DATASET}")
     ;;
   vjepa|v-jepa)
-    TRAIN_CMD=(uv run python run_experiments.py)
+    TRAIN_CMD=(uv run python train_csp_clipstyle.py --vision-backbone vjepa --dataset "${DATASET}")
     ;;
   ./*.sh|*.sh)
     TRAIN_CMD=(bash "${TARGET}")
@@ -53,9 +56,14 @@ case "${TARGET}" in
 esac
 
 echo "Training target: ${TARGET}"
+echo "Dataset: ${DATASET}"
 echo "Command: ${TRAIN_CMD[*]}"
 
-"${TRAIN_CMD[@]}"
+if [[ "${TARGET}" == "two_fusions" || "${TARGET}" == "two-stage" || "${TARGET}" == "two_stage" ]]; then
+  DATASET="${DATASET}" "${TRAIN_CMD[@]}"
+else
+  "${TRAIN_CMD[@]}"
+fi
 
 echo "============================================"
 echo "Finished:  $(date)"
