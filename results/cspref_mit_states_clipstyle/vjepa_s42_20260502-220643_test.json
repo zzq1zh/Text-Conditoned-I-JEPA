@@ -1,0 +1,21 @@
+{
+  "dataset": "cspref_mit_states",
+  "split": "test",
+  "seed": 42,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "vjepa-s42-20260502-220643",
+  "checkpoint": "checkpoints/vjepa_cspref_mit_states_clipstyle_s42_20260502-220643.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 1e-05,
+  "loss": 4.125534990596147,
+  "top1": 0.0828780300115429,
+  "top5": 0.2794921123509042,
+  "seen_top1": 0.1815126050420168,
+  "seen_top5": 0.4592436974789916,
+  "unseen_top1": 0.06076307112576543,
+  "unseen_top5": 0.23918982571832312,
+  "auc_csp_style": 0.01813930696071269,
+  "batch_size": 128,
+  "timestamp_unix": 1777781008
+}

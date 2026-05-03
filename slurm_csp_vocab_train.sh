@@ -1,5 +1,21 @@
 #!/bin/bash
-set -euo pipefail
+
+#SBATCH -p gpu
+#SBATCH --gres=gpu:1
+#SBATCH --constraint=l40s
+#SBATCH -n 4
+#SBATCH --mem=16G
+#SBATCH -t 24:00:00
+#SBATCH -J final_train
+#SBATCH -o slurm-%j.out
+#SBATCH -e slurm-%j.err
+
+echo "============================================"
+echo "Job ID:    $SLURM_JOB_ID"
+echo "Node:      $(hostname)"
+echo "Started:   $(date)"
+echo "GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null || echo 'none')"
+echo "============================================"
 
 # Standalone launcher for CSP post-training.
 # Usage:
@@ -42,3 +58,7 @@ fi
 echo "[csp_vocab_train] command: ${CMD[*]}"
 
 "${CMD[@]}"
+
+echo "============================================"
+echo "Finished:  $(date)"
+echo "============================================"
