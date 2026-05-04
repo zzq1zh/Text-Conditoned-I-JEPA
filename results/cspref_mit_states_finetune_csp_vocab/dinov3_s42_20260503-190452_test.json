@@ -1,0 +1,22 @@
+{
+  "run_type": "csp_vocab_eval",
+  "dataset": "cspref_mit_states",
+  "split": "test",
+  "seed": 42,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "dinov3-s42-20260503-190452",
+  "checkpoint": "checkpoints/csp_vocab_dinov3_cspref_mit_states_s42_20260503-190452.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 1e-05,
+  "loss": 4.213332277483644,
+  "top1": 0.05886879569065025,
+  "top5": 0.19199692189303577,
+  "seen_top1": 0.11260504201680673,
+  "seen_top5": 0.292436974789916,
+  "unseen_top1": 0.04682053697597739,
+  "unseen_top5": 0.16947715496938295,
+  "auc_csp_style": 0.00853321178891793,
+  "batch_size": 128,
+  "timestamp_unix": 1777851558
+}

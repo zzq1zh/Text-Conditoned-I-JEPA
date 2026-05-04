@@ -1,0 +1,21 @@
+{
+  "dataset": "cspref_mit_states",
+  "split": "val",
+  "seed": 42,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "rerun-ijepa_cspref_mit_states_clipstyle_s42_20260502-182023-20260503-162218",
+  "checkpoint": "/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/checkpoints/ijepa_cspref_mit_states_clipstyle_s42_20260502-182023.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 1e-05,
+  "loss": 4.155419340701112,
+  "top1": 0.09424184261036468,
+  "top5": 0.318426103646833,
+  "seen_top1": 0.2077006507592191,
+  "seen_top5": 0.46475054229934926,
+  "unseen_top1": 0.06984608208955224,
+  "unseen_top5": 0.2869636194029851,
+  "auc_csp_style": 0.023724014939519422,
+  "batch_size": 128,
+  "timestamp_unix": 1777840420
+}

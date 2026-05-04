@@ -1,0 +1,21 @@
+{
+  "dataset": "cspref_ut_zappos",
+  "split": "test",
+  "seed": 42,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "rerun-vjepa_cspref_ut_zappos_clipstyle_s42_20260502-191137-20260503-162218",
+  "checkpoint": "/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/checkpoints/vjepa_cspref_ut_zappos_clipstyle_s42_20260502-191137.pt",
+  "from_hub": "",
+  "lr": 0.0005,
+  "weight_decay": 1e-05,
+  "loss": 3.734792860550838,
+  "top1": 0.21173644474948525,
+  "top5": 0.6726149622512011,
+  "seen_top1": 0.29716520039100686,
+  "seen_top5": 0.7947214076246334,
+  "unseen_top1": 0.165520888418826,
+  "unseen_top5": 0.6065573770491803,
+  "auc_csp_style": 0.09631360937605288,
+  "batch_size": 128,
+  "timestamp_unix": 1777841128
+}

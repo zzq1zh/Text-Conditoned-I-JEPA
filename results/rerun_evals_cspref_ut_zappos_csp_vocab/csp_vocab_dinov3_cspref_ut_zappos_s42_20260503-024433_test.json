@@ -1,0 +1,22 @@
+{
+  "run_type": "csp_vocab_eval",
+  "dataset": "cspref_ut_zappos",
+  "split": "test",
+  "seed": 42,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "rerun-csp_vocab_dinov3_cspref_ut_zappos_s42_20260503-024433-20260503-162218",
+  "checkpoint": "/oscar/data/class/csci1430/students/zzhan360/Text-Conditoned-I-JEPA/checkpoints/csp_vocab/csp_vocab_dinov3_cspref_ut_zappos_s42_20260503-024433.pt",
+  "from_hub": "",
+  "lr": 0.0005,
+  "weight_decay": 1e-05,
+  "loss": 3.6159340975296033,
+  "top1": 0.3040494166094715,
+  "top5": 0.7947838023335622,
+  "seen_top1": 0.5151515151515151,
+  "seen_top5": 0.8856304985337243,
+  "unseen_top1": 0.18984664198836596,
+  "unseen_top5": 0.745637228979376,
+  "auc_csp_style": 0.1394065486094418,
+  "batch_size": 128,
+  "timestamp_unix": 1777839999
+}
