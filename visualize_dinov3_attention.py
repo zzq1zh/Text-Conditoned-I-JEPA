@@ -8,8 +8,9 @@ Visualize self-attention maps from a Hugging Face DINOv3 ViT backbone.
 - Plots the **CLS → patch** attention (mean over heads) for selected encoder layers.
 
 **CSP compare mode** (``--csp-compare``): given two CSP vocab bundles—one with a finetuned ``backbone`` and one
-without (or whose ``backbone`` tensors are ignored)—load **one** dataset (``--csp-dataset``) and collect ``n``
-contrast samples where **top-1 is correct with the finetuned backbone** but **wrong with pretrained backbone
+without (or whose ``backbone`` tensors are ignored)—load **one** dataset (``--csp-dataset``), scan **only its
+official test split** (Hub ``test`` rows for CSP-style datasets), and collect ``n`` contrast samples where
+**top-1 is correct with the finetuned backbone** but **wrong with pretrained backbone
 only** (bundle ``backbone`` not applied), then plot attentions for both (same logic as single-image mode).
 By default also writes each selected image and ``manifest.json`` under ``{csp_out_dir}/{dataset}_samples/``;
 use ``--csp-save-samples-dir`` to choose another folder, or ``--csp-no-save-samples`` to skip file export.
@@ -463,12 +464,12 @@ def _scan_csp_contrast_samples(
     bundle_tuned: dict[str, Any],
     proc: Any,
     device: torch.device,
-    eval_split: str,
     n_want: int,
     max_scan: int,
     use_amp: bool,
     seed: int,
 ) -> list[_CspContrastSample]:
+    """Scan only ``tvt.test`` (for CSP Hub datasets this is the official ``test`` split only)."""
     ba = _bundle_training_args(bundle_tuned)
     vf = float(_resolve_args_field(ba, "val_fraction", 0.1))
     ss = int(_resolve_args_field(ba, "split_seed", 0))
@@ -480,24 +481,39 @@ def _scan_csp_contrast_samples(
         max_val_samples=None,
         max_test_samples=None,
     )
-    if list(tvt.train.class_names) != list(csp_meta.pairs):
+    data_names = list(tvt.train.class_names)
+    ckpt_pairs = list(csp_meta.pairs)
+    if data_names != ckpt_pairs:
+        trained_on = _resolve_args_field(ba, "dataset", None)
+        hint = ""
+        if trained_on and str(trained_on) != str(dataset_key):
+            hint = (
+                f" This checkpoint's saved args.dataset is {trained_on!r} (you passed --csp-dataset {dataset_key!r}). "
+                "Use the same dataset key as training."
+            )
+        elif trained_on:
+            hint = (
+                " Same key was used but class lists differ—re-download the Hub dataset or rebuild the bundle "
+                "on this machine."
+            )
         raise ValueError(
-            f"Dataset {dataset_key}: class order != checkpoint meta.pairs "
-            f"(n_data={len(tvt.train.class_names)} n_ckpt={len(csp_meta.pairs)})."
+            f"CSP bundle label space does not match dataset {dataset_key!r}: "
+            f"len(train.class_names)={len(data_names)} vs len(meta.pairs)={len(ckpt_pairs)}. "
+            f"CSP compare requires an exact ClassLabel order match with the bundle.{hint}"
         )
 
-    spec = tvt.val if eval_split == "val" else tvt.test
+    spec = tvt.test
     ds = spec.dataset
     image_col = spec.image_column
     lk = spec.label_key
     class_names = list(tvt.train.class_names)
 
     n_classes = len(class_names)
-    allowed = csp_vocab_allowed_class_indices(tvt, eval_split)
+    allowed = csp_vocab_allowed_class_indices(tvt, "test")
     allowed_arg: list[int] | None = allowed if len(allowed) < n_classes else None
     if allowed_arg is not None:
         print(
-            f"  {dataset_key}: eval uses {len(allowed_arg)}/{n_classes} allowed classes.",
+            f"  {dataset_key}: test split uses {len(allowed_arg)}/{n_classes} allowed classes (train∪test labels).",
             flush=True,
         )
 
@@ -564,7 +580,6 @@ def _save_csp_compare_sample_artifacts(
     pair_names: list[str],
     out_dir: Path,
     dataset_key: str,
-    eval_split: str,
 ) -> None:
     """Write one PNG per sample plus ``manifest.json`` with labels and pair strings."""
     out_dir = Path(out_dir)
@@ -590,7 +605,7 @@ def _save_csp_compare_sample_artifacts(
 
     payload = {
         "dataset": dataset_key,
-        "eval_split": eval_split,
+        "eval_split": "test",
         "samples": manifest_samples,
     }
     (out_dir / "manifest.json").write_text(
@@ -710,7 +725,6 @@ def run_csp_backbone_compare(args: argparse.Namespace) -> None:
     _backbone_to_eager_attn(model_b, ijepa_id, device)
 
     proc = load_vision_processor(ijepa_id)
-    eval_split = str(args.csp_eval_split)
     n = int(args.csp_n_samples)
     max_scan = int(args.csp_max_scan)
     ds_key = str(args.csp_dataset)
@@ -728,14 +742,15 @@ def run_csp_backbone_compare(args: argparse.Namespace) -> None:
         bundle_tuned=bundle_t,
         proc=proc,
         device=device,
-        eval_split=eval_split,
         n_want=n,
         max_scan=max_scan,
         use_amp=use_amp,
         seed=int(args.seed),
     )
     if not samples:
-        raise SystemExit(f"No contrast samples found for {ds_key!r} (try --csp-max-scan or another split).")
+        raise SystemExit(
+            f"No contrast samples found on the test split for {ds_key!r} (try increasing --csp-max-scan)."
+        )
 
     if not args.csp_no_save_samples:
         save_dir = (
@@ -748,7 +763,6 @@ def run_csp_backbone_compare(args: argparse.Namespace) -> None:
             pair_names=list(csp_meta.pairs),
             out_dir=save_dir,
             dataset_key=ds_key,
-            eval_split=eval_split,
         )
 
     out_p = Path(args.csp_out_dir) / f"{ds_key}_csp_attn_compare.png"
@@ -772,8 +786,8 @@ def main() -> None:
     p.add_argument(
         "--csp-compare",
         action="store_true",
-        help="CSP mode: on one --csp-dataset, find contrast samples (finetuned backbone top-1 correct, "
-        "pretrained-only backbone top-1 wrong) and plot attention maps.",
+        help="CSP mode: on one --csp-dataset, search **test split only**; contrast samples must have finetuned "
+        "backbone top-1 correct and pretrained-only backbone top-1 wrong.",
     )
     p.add_argument(
         "--csp-checkpoint-tuned",
@@ -801,16 +815,10 @@ def main() -> None:
         help="Single vision_data key for --csp-compare (e.g. csp_two_object). Required with --csp-compare.",
     )
     p.add_argument(
-        "--csp-eval-split",
-        choices=("test", "val"),
-        default="test",
-        help="Split to scan (default: test).",
-    )
-    p.add_argument(
         "--csp-max-scan",
         type=int,
         default=8000,
-        help="Max dataset rows to scan when searching for contrast pairs (default: 8000).",
+        help="Max test-split rows to scan when searching for contrast pairs (default: 8000).",
     )
     p.add_argument(
         "--csp-out-dir",
