@@ -8,9 +8,11 @@ Visualize self-attention maps from a Hugging Face DINOv3 ViT backbone.
 - Plots the **CLS → patch** attention (mean over heads) for selected encoder layers.
 
 **CSP compare mode** (``--csp-compare``): given two CSP vocab bundles—one with a finetuned ``backbone`` and one
-without (or whose ``backbone`` tensors are ignored)—scan three CSP datasets and pick ``n`` images per dataset
-where **top-1 is correct with the finetuned backbone** but **wrong with the Hub pretrained backbone**, then
-visualize attentions for both backbones (same logic as single-image mode).
+without (or whose ``backbone`` tensors are ignored)—load **one** dataset (``--csp-dataset``) and collect ``n``
+contrast samples where **top-1 is correct with the finetuned backbone** but **wrong with pretrained backbone
+only** (bundle ``backbone`` not applied), then plot attentions for both (same logic as single-image mode).
+By default also writes each selected image and ``manifest.json`` under ``{csp_out_dir}/{dataset}_samples/``;
+use ``--csp-save-samples-dir`` to choose another folder, or ``--csp-no-save-samples`` to skip file export.
 
 Requires HF access to the gated DINOv3 repo (``HF_TOKEN`` / ``huggingface-cli login``).
 
@@ -24,12 +26,13 @@ Example (CSP backbone compare; bundles must match training ``args`` / ``meta``):
   uv run python visualize_dinov3_attention.py --csp-compare \\
     --csp-checkpoint-tuned path/to/with_backbone.pt \\
     --csp-checkpoint-base path/to/heads_only.pt \\
-    --csp-n-per-dataset 5 --csp-out-dir out_attn
+    --csp-dataset csp_two_object --csp-n-samples 5 --csp-out-dir out_attn
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import random
 import sys
 from dataclasses import dataclass
@@ -235,9 +238,6 @@ def _upsample_map(m: np.ndarray, out_hw: tuple[int, int]) -> np.ndarray:
     return cv2.resize(m.astype(np.float32), (ow, oh), interpolation=cv2.INTER_LINEAR)
 
 
-DEFAULT_CSP_COMPARE_DATASETS = ("csp_two_object", "csp_single_object", "csp_rel")
-
-
 def _meta_from_bundle(meta_d: dict[str, Any]) -> CspVocabMeta:
     return CspVocabMeta(
         attrs=list(meta_d["attrs"]),
@@ -322,7 +322,7 @@ def _load_csp_textconditioned(
             )
     elif isinstance(bb, dict) and bb:
         print(
-            "Note: base checkpoint contains 'backbone' tensors; they are ignored (Hub pretrained backbone).",
+            "Note: base checkpoint contains 'backbone' tensors; they are ignored (pretrained backbone only).",
             flush=True,
         )
 
@@ -448,6 +448,8 @@ class _CspContrastSample:
     y_name: str
     pred_base: int
     pred_tuned: int
+    split_row_index: int
+    pos_phrase: str | None = None
 
 
 def _scan_csp_contrast_samples(
@@ -532,6 +534,10 @@ def _scan_csp_contrast_samples(
         pred_t = int(logits_t.argmax(dim=-1).item())
         pred_b = int(logits_b.argmax(dim=-1).item())
         if pred_t == label and pred_b != label:
+            pos_phrase: str | None = None
+            if "pos" in ds.column_names:
+                raw_p = row["pos"]
+                pos_phrase = None if raw_p is None else str(raw_p)
             found.append(
                 _CspContrastSample(
                     pil=pil,
@@ -539,6 +545,8 @@ def _scan_csp_contrast_samples(
                     y_name=class_names[label],
                     pred_base=pred_b,
                     pred_tuned=pred_t,
+                    split_row_index=int(idx),
+                    pos_phrase=pos_phrase,
                 )
             )
 
@@ -548,6 +556,48 @@ def _scan_csp_contrast_samples(
         flush=True,
     )
     return found
+
+
+def _save_csp_compare_sample_artifacts(
+    samples: list[_CspContrastSample],
+    *,
+    pair_names: list[str],
+    out_dir: Path,
+    dataset_key: str,
+    eval_split: str,
+) -> None:
+    """Write one PNG per sample plus ``manifest.json`` with labels and pair strings."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest_samples: list[dict[str, Any]] = []
+    for i, s in enumerate(samples):
+        fname = f"sample_{i:03d}.png"
+        s.pil.save(out_dir / fname)
+        entry: dict[str, Any] = {
+            "index_in_manifest": i,
+            "image_file": fname,
+            "split_row_index": s.split_row_index,
+            "label_id": s.label,
+            "pair_label_text": s.y_name,
+            "pred_pretrained_id": s.pred_base,
+            "pred_tuned_id": s.pred_tuned,
+            "pred_pretrained_pair_text": pair_names[s.pred_base],
+            "pred_tuned_pair_text": pair_names[s.pred_tuned],
+        }
+        if s.pos_phrase is not None:
+            entry["dataset_pos_phrase"] = s.pos_phrase
+        manifest_samples.append(entry)
+
+    payload = {
+        "dataset": dataset_key,
+        "eval_split": eval_split,
+        "samples": manifest_samples,
+    }
+    (out_dir / "manifest.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(f"Saved {len(samples)} images and manifest.json under {out_dir.resolve()}", flush=True)
 
 
 def _figure_csp_backbone_compare(
@@ -585,7 +635,7 @@ def _figure_csp_backbone_compare(
         )
 
         row_title = (
-            f"{r + 1}: y={sample.y_name} | tuned_ok hub_wrong | hub_top1={sample.pred_base}"
+            f"{r + 1}: y={sample.y_name} | tuned_ok pretrained_wrong | pretrained_top1={sample.pred_base}"
         )
         for c in range(ncols):
             ax = axes[r, c]
@@ -603,10 +653,10 @@ def _figure_csp_backbone_compare(
                 um = _upsample_map(maps_b[li], (H, W))
                 ax.imshow(np_img)
                 ax.imshow(um, cmap="jet", alpha=0.45, vmin=0.0, vmax=1.0)
-                ax.set_title(f"hub L{li}", fontsize=8)
+                ax.set_title(f"pretrained L{li}", fontsize=8)
             ax.axis("off")
 
-    sup = f"{dataset_tag}\ntuned_ckpt: {ckpt_tuned}\nbase_ckpt (Hub backbone): {ckpt_base}\n{ijepa_id}"
+    sup = f"{dataset_tag}\ntuned_ckpt: {ckpt_tuned}\nbase_ckpt (pretrained backbone): {ckpt_base}\n{ijepa_id}"
     fig.suptitle(sup, fontsize=9)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -661,46 +711,60 @@ def run_csp_backbone_compare(args: argparse.Namespace) -> None:
 
     proc = load_vision_processor(ijepa_id)
     eval_split = str(args.csp_eval_split)
-    n = int(args.csp_n_per_dataset)
+    n = int(args.csp_n_samples)
     max_scan = int(args.csp_max_scan)
+    ds_key = str(args.csp_dataset)
 
-    for ds_key in args.csp_datasets:
-        if ds_key not in list_vision_dataset_keys():
-            raise SystemExit(f"Unknown dataset {ds_key!r}. Choose from {list_vision_dataset_keys()}")
-        sub_seed = int(args.seed) + sum(ord(c) for c in ds_key)
-        samples = _scan_csp_contrast_samples(
-            dataset_key=ds_key,
-            model_t=model_t,
-            model_b=model_b,
-            csp_t=csp_mod_t,
-            csp_b=csp_mod_b,
-            csp_meta=csp_meta,
-            bundle_tuned=bundle_t,
-            proc=proc,
-            device=device,
-            eval_split=eval_split,
-            n_want=n,
-            max_scan=max_scan,
-            use_amp=use_amp,
-            seed=sub_seed,
+    if ds_key not in list_vision_dataset_keys():
+        raise SystemExit(f"Unknown dataset {ds_key!r}. Choose from {list_vision_dataset_keys()}")
+
+    samples = _scan_csp_contrast_samples(
+        dataset_key=ds_key,
+        model_t=model_t,
+        model_b=model_b,
+        csp_t=csp_mod_t,
+        csp_b=csp_mod_b,
+        csp_meta=csp_meta,
+        bundle_tuned=bundle_t,
+        proc=proc,
+        device=device,
+        eval_split=eval_split,
+        n_want=n,
+        max_scan=max_scan,
+        use_amp=use_amp,
+        seed=int(args.seed),
+    )
+    if not samples:
+        raise SystemExit(f"No contrast samples found for {ds_key!r} (try --csp-max-scan or another split).")
+
+    if not args.csp_no_save_samples:
+        save_dir = (
+            Path(args.csp_save_samples_dir)
+            if args.csp_save_samples_dir is not None
+            else Path(args.csp_out_dir) / f"{ds_key}_samples"
         )
-        if not samples:
-            print(f"Skipping figure for {ds_key} (no contrast samples).", flush=True)
-            continue
-        out_p = Path(args.csp_out_dir) / f"{ds_key}_csp_attn_compare.png"
-        _figure_csp_backbone_compare(
+        _save_csp_compare_sample_artifacts(
             samples,
-            model_t=model_t,
-            model_b=model_b,
-            bundle_tuned=bundle_t,
-            proc=proc,
-            device=device,
-            layers=list(args.layers),
-            dataset_tag=ds_key,
-            out_path=out_p,
-            ckpt_tuned=p_t,
-            ckpt_base=p_b,
+            pair_names=list(csp_meta.pairs),
+            out_dir=save_dir,
+            dataset_key=ds_key,
+            eval_split=eval_split,
         )
+
+    out_p = Path(args.csp_out_dir) / f"{ds_key}_csp_attn_compare.png"
+    _figure_csp_backbone_compare(
+        samples,
+        model_t=model_t,
+        model_b=model_b,
+        bundle_tuned=bundle_t,
+        proc=proc,
+        device=device,
+        layers=list(args.layers),
+        dataset_tag=ds_key,
+        out_path=out_p,
+        ckpt_tuned=p_t,
+        ckpt_base=p_b,
+    )
 
 
 def main() -> None:
@@ -708,8 +772,8 @@ def main() -> None:
     p.add_argument(
         "--csp-compare",
         action="store_true",
-        help="CSP mode: find contrast samples (finetuned backbone top-1 correct, Hub backbone top-1 wrong) "
-        "and plot attention maps.",
+        help="CSP mode: on one --csp-dataset, find contrast samples (finetuned backbone top-1 correct, "
+        "pretrained-only backbone top-1 wrong) and plot attention maps.",
     )
     p.add_argument(
         "--csp-checkpoint-tuned",
@@ -721,20 +785,20 @@ def main() -> None:
         "--csp-checkpoint-base",
         type=Path,
         default=None,
-        help="CSP bundle for adapter/fusion/csp_vocab; 'backbone' tensors are ignored (Hub pretrained). "
+        help="CSP bundle for adapter/fusion/csp_vocab; 'backbone' tensors are ignored (pretrained weights only). "
         "May be the same file as --csp-checkpoint-tuned when only the vision backbone should differ.",
     )
     p.add_argument(
-        "--csp-n-per-dataset",
+        "--csp-n-samples",
         type=int,
         default=3,
-        help="Number of image+text contrast pairs per dataset (default: 3).",
+        dest="csp_n_samples",
+        help="Number of contrast image+label pairs to collect from --csp-dataset (default: 3).",
     )
     p.add_argument(
-        "--csp-datasets",
-        nargs="+",
-        default=list(DEFAULT_CSP_COMPARE_DATASETS),
-        help=f"CSP dataset keys (default: {' '.join(DEFAULT_CSP_COMPARE_DATASETS)}).",
+        "--csp-dataset",
+        default=None,
+        help="Single vision_data key for --csp-compare (e.g. csp_two_object). Required with --csp-compare.",
     )
     p.add_argument(
         "--csp-eval-split",
@@ -746,13 +810,25 @@ def main() -> None:
         "--csp-max-scan",
         type=int,
         default=8000,
-        help="Max rows to scan per dataset when searching for contrast pairs (default: 8000).",
+        help="Max dataset rows to scan when searching for contrast pairs (default: 8000).",
     )
     p.add_argument(
         "--csp-out-dir",
         type=Path,
         default=Path("csp_attention_compare"),
-        help="Output directory for per-dataset PNG grids (default: csp_attention_compare/).",
+        help="Output directory; writes {dataset}_csp_attn_compare.png and, by default, {dataset}_samples/ with PNGs + manifest.",
+    )
+    p.add_argument(
+        "--csp-no-save-samples",
+        action="store_true",
+        help="With --csp-compare: do not write per-sample PNGs or manifest.json (attention grid only).",
+    )
+    p.add_argument(
+        "--csp-save-samples-dir",
+        type=Path,
+        default=None,
+        help="With --csp-compare: directory for PNGs + manifest.json. "
+        "Default: {csp_out_dir}/{dataset}_samples/ when saving is enabled.",
     )
     p.add_argument("--seed", type=int, default=0, help="Shuffle seed for scanning order.")
     p.add_argument(
@@ -778,6 +854,8 @@ def main() -> None:
     if args.csp_compare:
         if args.csp_checkpoint_tuned is None or args.csp_checkpoint_base is None:
             raise SystemExit("--csp-compare requires --csp-checkpoint-tuned and --csp-checkpoint-base.")
+        if not args.csp_dataset:
+            raise SystemExit("--csp-compare requires --csp-dataset (single vision_data registry key).")
         run_csp_backbone_compare(args)
         return
 
@@ -793,11 +871,11 @@ def main() -> None:
         tuned = _extract_backbone_state(raw)
         if tuned is None:
             print(
-                f"Checkpoint {args.checkpoint} has no backbone weights; using Hub backbone only.",
+                f"Checkpoint {args.checkpoint} has no backbone weights; using pretrained backbone only.",
                 flush=True,
             )
     elif args.checkpoint:
-        print(f"No file at {args.checkpoint}; using Hub backbone only.", flush=True)
+        print(f"No file at {args.checkpoint}; using pretrained backbone only.", flush=True)
 
     model = _load_backbone(model_id, device, tuned_sd=tuned)
     proc = load_vision_processor(model_id)
