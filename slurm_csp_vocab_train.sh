@@ -38,13 +38,15 @@ if [[ -n "${W_PROJECT}" ]]; then
   export WANDB_PROJECT="${W_PROJECT}"
 fi
 
-CMD=(uv run python run_csp_vocab_train.py --vision-backbone "${VISION_BACKBONE}" --dataset "${DATASET}")
+FUSION_TYPE="${FUSION_TYPE:-clip_similarity}"
+CMD=(uv run python run_csp_vocab_train.py --vision-backbone "${VISION_BACKBONE}" --dataset "${DATASET}" --fusion-type "${FUSION_TYPE}")
 if [[ -n "${BASE_CKPT}" ]]; then
   CMD+=(--base-checkpoint "${BASE_CKPT}")
 fi
 
 echo "[csp_vocab_train] dataset: ${DATASET}"
 echo "[csp_vocab_train] vision backbone: ${VISION_BACKBONE}"
+echo "[csp_vocab_train] fusion type: ${FUSION_TYPE}"
 if [[ -n "${BASE_CKPT}" ]]; then
   echo "[csp_vocab_train] base checkpoint: ${BASE_CKPT}"
 else

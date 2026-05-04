@@ -35,6 +35,8 @@ source ~/.local/bin/env
 #     → appends --finetune-csp-vocab only (text_cond_train CSP path trains from scratch; 4th-arg BASE_CKPT unused here)
 #   FINETUNE_VISION_BACKBONE=1 sbatch slurm_text_cond_train.sh ijepa cspref_mit_states
 #     → appends --finetune-vision-backbone (with FINETUNE_CSP_VOCAB=1, unfreezes vision during CSP vocab training too)
+#   FUSION_TYPE=cross_attention sbatch slurm_text_cond_train.sh dinov3 cspref_mit_states my-wandb
+#     → passes --fusion-type to run_text_cond_train (default: clip_similarity)
 TARGET="${1:-${TRAIN_TARGET:-two_fusions}}"
 DATASET="${2:-${TRAIN_DATASET:-cspref_mit_states}}"
 W_PROJECT="${3:-${WANDB_PROJECT:-}}"
@@ -42,19 +44,20 @@ BASE_CKPT="${4:-${CSP_BASE_CKPT:-}}"
 CSP_BACKBONE="${5:-ijepa}"
 FINETUNE_CSP_VOCAB="${FINETUNE_CSP_VOCAB:-0}"
 FINETUNE_VISION_BACKBONE="${FINETUNE_VISION_BACKBONE:-0}"
+FUSION_TYPE="${FUSION_TYPE:-clip_similarity}"
 
 case "${TARGET}" in
   two_fusions|two-stage|two_stage)
     TRAIN_CMD=(bash train_two_fusions_and_push.sh)
     ;;
   dinov3|dino)
-    TRAIN_CMD=(uv run python run_text_cond_train.py --vision-backbone dinov3 --dataset "${DATASET}")
+    TRAIN_CMD=(uv run python run_text_cond_train.py --vision-backbone dinov3 --dataset "${DATASET}" --fusion-type "${FUSION_TYPE}")
     ;;
   ijepa|i-jepa)
-    TRAIN_CMD=(uv run python run_text_cond_train.py --vision-backbone ijepa --dataset "${DATASET}")
+    TRAIN_CMD=(uv run python run_text_cond_train.py --vision-backbone ijepa --dataset "${DATASET}" --fusion-type "${FUSION_TYPE}")
     ;;
   vjepa|v-jepa)
-    TRAIN_CMD=(uv run python run_text_cond_train.py --vision-backbone vjepa --dataset "${DATASET}")
+    TRAIN_CMD=(uv run python run_text_cond_train.py --vision-backbone vjepa --dataset "${DATASET}" --fusion-type "${FUSION_TYPE}")
     ;;
   csp_posttrain|csp-posttrain|csp)
     TRAIN_CMD=(bash slurm_csp_vocab_train.sh "${CSP_BACKBONE}" "${DATASET}" "${BASE_CKPT}" "${W_PROJECT}")
@@ -97,6 +100,7 @@ echo "Training target: ${TARGET}"
 echo "Dataset: ${DATASET}"
 echo "FINETUNE_CSP_VOCAB: ${FINETUNE_CSP_VOCAB} (1/true/y adds --finetune-csp-vocab for ijepa/dinov3/vjepa)"
 echo "FINETUNE_VISION_BACKBONE: ${FINETUNE_VISION_BACKBONE} (1/true/y adds --finetune-vision-backbone for ijepa/dinov3/vjepa)"
+echo "FUSION_TYPE: ${FUSION_TYPE} (--fusion-type for run_text_cond_train; not from hyperparameters.json)"
 if [[ "${TARGET}" == "csp_posttrain" || "${TARGET}" == "csp-posttrain" || "${TARGET}" == "csp" ]]; then
   echo "CSP vision backbone: ${CSP_BACKBONE}"
   if [[ -n "${BASE_CKPT}" ]]; then

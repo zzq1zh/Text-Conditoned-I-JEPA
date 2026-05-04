@@ -47,6 +47,15 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
         default=os.environ.get("HYPERPARAMS_FILE", "hyperparameters.json"),
     )
     p.add_argument(
+        "--fusion-type",
+        default=(os.environ.get("FUSION_TYPE", "") or "clip_similarity").strip(),
+        choices=("cross_attention", "linear", "clip_similarity"),
+        help=(
+            "Fusion head (not read from hyperparameters.json). "
+            "Override default via env FUSION_TYPE or this flag."
+        ),
+    )
+    p.add_argument(
         "--base-checkpoint",
         default="",
         help="Optional base checkpoint path (overrides base_checkpoint / csp_base_checkpoint in JSON). Supports '{seed}' template.",
@@ -170,7 +179,7 @@ def main() -> None:
     lr = _require_hparam(merged, "lr", float)
     weight_decay = _require_hparam(merged, "weight_decay", float)
     max_grad_norm = _require_hparam(merged, "max_grad_norm", float)
-    fusion_type = _require_hparam(merged, "fusion_type", str)
+    fusion_type = str(args.fusion_type)
 
     if str(args.seed).strip():
         seeds = [str(args.seed).strip()]

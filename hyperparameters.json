@@ -9,7 +9,6 @@
     "warmup_ratio": 0.0,
     "min_lr_ratio": 0.1,
     "weight_decay": 5e-5,
-    "fusion_type": "clip_similarity",
     "text_template": "a photo of a {c}.",
     "cond_dim": 256,
     "fusion_hidden": 512,
@@ -26,7 +25,6 @@
       "warmup_ratio": 0.0,
       "min_lr_ratio": 0.1,
       "weight_decay": 1e-5,
-      "fusion_type": "clip_similarity",
       "text_template": "a photo of a {c}."
     },
     "cspref_ut_zappos": {
@@ -38,7 +36,6 @@
       "warmup_ratio": 0.0,
       "min_lr_ratio": 0.1,
       "weight_decay": 1e-5,
-      "fusion_type": "clip_similarity",
       "text_template": "a photo of a {c}."
     },
     "cspref_cgqa": {
@@ -50,7 +47,6 @@
       "warmup_ratio": 0.0,
       "min_lr_ratio": 0.1,
       "weight_decay": 5e-5,
-      "fusion_type": "clip_similarity",
       "text_template": "a photo of a {c}."
     }
   }
