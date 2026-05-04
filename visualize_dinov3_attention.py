@@ -115,12 +115,22 @@ def _load_backbone(model_id: str, device: torch.device, *, tuned_sd: dict[str, t
 
 
 def _encoder_layers(model: nn.Module) -> nn.ModuleList:
+    """
+    Return the ``ModuleList`` of transformer blocks.
+
+    - Dinov2-style ViTs: ``model.encoder.layer``
+    - DINOv3 ViT (``DINOv3ViTModel``): ``model.model.layer`` (encoder submodule is named ``model``).
+    """
     enc = getattr(model, "encoder", None)
     if enc is None:
-        raise RuntimeError("Model has no .encoder; expected a ViT-style HF backbone.")
+        enc = getattr(model, "model", None)
+    if enc is None:
+        raise RuntimeError(
+            "Backbone has neither .encoder nor .model; expected a Dinov2- or DINOv3-ViT-style HF vision model."
+        )
     layers = getattr(enc, "layer", None)
     if layers is None:
-        raise RuntimeError("Model.encoder has no .layer list.")
+        raise RuntimeError("Vision encoder submodule has no .layer ModuleList.")
     return layers
 
 
