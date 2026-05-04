@@ -259,10 +259,11 @@ class TextConditioningModule(nn.Module):
 
 class FusionHead(nn.Module):
     """
-    Fuses a pooled visual vector (I-JEPA) and a text conditioning vector
-    via cross-attention (visual query attends to text key/value).
-    Only this module and TextConditioningModule (adapter) are trained when the
-    backbones are frozen.
+    Fuses visual features and a text conditioning vector into a scalar score.
+    - ``cross_attention``: **sequence** of visual tokens ``(B, N, D_v)`` (or ``(B, D_v)`` as length-1)
+      each attends to one text token, then per-position CLIP-style cosine similarities are **summed**
+      over ``N`` (no mean-pool on the backbone; scalar is a sum of patch scores, scaled).
+    - ``clip_similarity``: pooled ``(B, D_v)`` only — direct projections + normalized dot product.
     """
 
     def __init__(
@@ -291,13 +292,7 @@ class FusionHead(nn.Module):
             self.cross_attn = nn.MultiheadAttention(
                 embed_dim=hidden, num_heads=n_heads, dropout=0.1, batch_first=True
             )
-            self.score_head = nn.Sequential(
-                nn.LayerNorm(2 * hidden),
-                nn.Linear(2 * hidden, hidden),
-                nn.GELU(),
-                nn.Dropout(0.1),
-                nn.Linear(hidden, 1),
-            )
+            self.logit_scale = nn.Parameter(torch.tensor(math.log(1.0 / 0.07)))
         else:
             raise ValueError(
                 f"Unsupported fusion_type={self.fusion_type!r}; expected 'cross_attention', 'linear', or 'clip_similarity'"
@@ -305,26 +300,49 @@ class FusionHead(nn.Module):
 
     def forward(self, visual: torch.Tensor, text_cond: torch.Tensor) -> torch.Tensor:
         if self.fusion_type == "linear":
+            if visual.ndim != 2:
+                raise ValueError(
+                    f"fusion_type='linear' expects visual (B, D_v); got shape {tuple(visual.shape)}"
+                )
             s = self.score_head(torch.cat([visual, text_cond], dim=-1))
             return s.squeeze(-1)
         if self.fusion_type == "clip_similarity":
+            if visual.ndim != 2:
+                raise ValueError(
+                    f"fusion_type='clip_similarity' expects visual (B, D_v); got shape {tuple(visual.shape)}"
+                )
             v = nn.functional.normalize(self.visual_proj(visual), dim=-1)
             t = nn.functional.normalize(self.text_proj(text_cond), dim=-1)
             # Same scaling form as CLIP: exp(logit_scale) * cosine_similarity.
             scale = self.logit_scale.exp().clamp(max=100.0)
             return (v * t).sum(dim=-1) * scale
-        # One-token cross-attention: visual token queries the conditioned text token.
-        q = self.visual_proj(visual).unsqueeze(1)
-        kv = self.text_proj(text_cond).unsqueeze(1)
-        attn_out, _ = self.cross_attn(query=q, key=kv, value=kv, need_weights=False)
-        fused = torch.cat([q.squeeze(1), attn_out.squeeze(1)], dim=-1)
-        s = self.score_head(fused)
-        return s.squeeze(-1)
+        # cross_attention: (B, N, D_v) queries, text as single KV; sum of per-token cosine scores.
+        if visual.ndim == 2:
+            visual = visual.unsqueeze(1)
+        q = self.text_proj(text_cond).unsqueeze(1)  # [B, 1, D]
+        kv = self.visual_proj(visual)               # [B, N_img, D]
+
+        attn_out, _ = self.cross_attn(
+            query=q,
+            key=kv,
+            value=kv,
+            need_weights=False,
+        )
+
+        t = q.squeeze(1)
+        v = attn_out.squeeze(1)
+
+        t = nn.functional.normalize(t, dim=-1)
+        v = nn.functional.normalize(v, dim=-1)
+
+        scale = self.logit_scale.exp().clamp(max=100.0)
+        return (v * t).sum(dim=-1) * scale
 
 
 class TextConditionedIJepa(nn.Module):
     """
-    Vision backbone (I-JEPA / ViT) optionally frozen + text conditioning + fusion scorer.
+    Vision backbone (I-JEPA / ViT / DINOv3) optionally frozen + text conditioning + fusion scorer.
+    For ``fusion_type='cross_attention'``, image features are a **token sequence** (no pre-fusion mean-pool).
     When the backbone is frozen, visual features use inference mode and are detached.
     """
 
@@ -362,21 +380,28 @@ class TextConditionedIJepa(nn.Module):
         self.cond_dim = cond_dim
 
     def encode_image(self, pixel_values: torch.Tensor) -> torch.Tensor:
+        """
+        Returns ``(B, N, D)`` token features for ``cross_attention``, else mean-pooled ``(B, D)``.
+        """
+        use_token_seq = self.fusion.fusion_type == "cross_attention"
         if self.freeze_vision_backbone:
             with torch.inference_mode():
                 enc = _forward_backbone(self.backbone, pixel_values)
-                seq = _extract_token_sequence(enc)
-                z = seq.float().mean(dim=1).detach()
-            return z
+                seq = _extract_token_sequence(enc).float()
+                if use_token_seq:
+                    return seq.detach()
+                return seq.mean(dim=1).detach()
         enc = _forward_backbone(self.backbone, pixel_values)
-        seq = _extract_token_sequence(enc)
-        return seq.float().mean(dim=1)
+        seq = _extract_token_sequence(enc).float()
+        if use_token_seq:
+            return seq
+        return seq.mean(dim=1)
 
     def encode_text(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         return self.text_cond(input_ids, attention_mask)
 
     def score_pairs(self, image_feats: torch.Tensor, text_feats: torch.Tensor) -> torch.Tensor:
-        """Pairwise score for aligned rows: (B,Dv) x (B,Dt) -> (B,)."""
+        """Pairwise score for aligned rows: ``(B, Dv)`` or ``(B, N, Dv)`` × ``(B, Dt)`` -> ``(B,)``."""
         return self.fusion(image_feats, text_feats)
 
     def score_candidates(
@@ -384,7 +409,8 @@ class TextConditionedIJepa(nn.Module):
     ) -> torch.Tensor:
         """
         Score all candidates for each image.
-        image_feats: (B, Dv), candidate_text_embeds: (C, Dt) -> scores: (B, C)
+        image_feats: ``(B, D_v)`` or ``(B, N, D_v)`` (tokens for cross-attention),
+        candidate_text_embeds: (C, Dt) -> scores: (B, C)
         """
         b = image_feats.size(0)
         c = candidate_text_embeds.size(0)
@@ -393,7 +419,16 @@ class TextConditionedIJepa(nn.Module):
             e = min(c, s + chunk_size)
             t = candidate_text_embeds[s:e]  # (Cc, Dt)
             cc = t.size(0)
-            img_rep = image_feats.unsqueeze(1).expand(-1, cc, -1).reshape(b * cc, -1)
+            if image_feats.dim() == 2:
+                img_rep = image_feats.unsqueeze(1).expand(-1, cc, -1).reshape(b * cc, -1)
+            else:
+                n_tok = image_feats.size(1)
+                dv = image_feats.size(2)
+                img_rep = (
+                    image_feats.unsqueeze(1)
+                    .expand(b, cc, n_tok, dv)
+                    .reshape(b * cc, n_tok, dv)
+                )
             txt_rep = t.unsqueeze(0).expand(b, -1, -1).reshape(b * cc, -1)
             sc = self.score_pairs(img_rep, txt_rep).view(b, cc)
             out_chunks.append(sc)
