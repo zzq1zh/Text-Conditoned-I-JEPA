@@ -128,8 +128,15 @@ def _wandb_model_suffix(args: argparse.Namespace) -> str:
     return "model"
 
 
+def _fusion_slug(args: argparse.Namespace) -> str:
+    """Hyphenated ``--fusion-type`` for default local filenames (e.g. ``cross-attention``)."""
+    return str(getattr(args, "fusion_type", "cross_attention")).strip().replace("_", "-")
+
+
 def _default_train_wandb_run_name(args: argparse.Namespace) -> str:
-    return f"train-{args.dataset}-{args.fusion_type}-seed{args.seed}-{_wandb_model_suffix(args)}"
+    return (
+        f"train-{args.dataset}-{args.fusion_type}-seed{args.seed}-{_wandb_model_suffix(args)}"
+    )
 
 
 def _default_eval_wandb_run_name(args: argparse.Namespace, *, fusion_type: str) -> str:
@@ -822,6 +829,7 @@ def run_finetune(args: argparse.Namespace) -> None:
             project=args.wandb_project,
             entity=args.wandb_entity or None,
             name=run_name,
+            tags=[str(args.fusion_type)],
             config=asdict(state),
         )
     else:
@@ -853,7 +861,9 @@ def run_finetune(args: argparse.Namespace) -> None:
             # Frozen vision: eval mode for stable LayerNorm / dropout behavior without updates.
             model.backbone.eval()
         pbar = tqdm(
-            train_loader, desc=f"train ep {epoch+1}/{args.epochs}", file=sys.stdout
+            train_loader,
+            desc=f"train fusion={args.fusion_type} ep {epoch + 1}/{args.epochs}",
+            file=sys.stdout,
         )
         for batch_idx, batch in enumerate(pbar):
             pv = batch["pixel_values"].to(device, non_blocking=True)
@@ -1017,7 +1027,7 @@ def _default_csp_vocab_train_wandb_run_name(args: argparse.Namespace) -> str:
 def _default_csp_vocab_bundle_save_path(args: argparse.Namespace) -> str:
     """Default ``--save`` when ``--finetune-csp-vocab`` and ``--save`` omitted."""
     ds = str(args.dataset).replace("-", "_")
-    return f"csp_vocab_{ds}_s{args.seed}.pt"
+    return f"csp_vocab_{ds}_{_fusion_slug(args)}_s{args.seed}.pt"
 
 
 def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
@@ -1244,9 +1254,10 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
             project=args.wandb_project,
             entity=args.wandb_entity or None,
             name=run_name,
+            tags=[str(args.fusion_type), "csp_vocab"],
             config={
                 **asdict(state),
-                "run_type": "text_cond_csp_vocab",
+                "run_type": f"text_cond_csp_vocab_{args.fusion_type}",
             },
         )
     else:
@@ -1281,7 +1292,7 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
             csp_vocab.adapter.train()
             pbar = tqdm(
                 train_loader,
-                desc=f"csp vocab train ep {epoch + 1}/{args.epochs}",
+                desc=f"csp vocab fusion={args.fusion_type} ep {epoch + 1}/{args.epochs}",
                 file=sys.stdout,
             )
             for batch_idx, batch in enumerate(pbar):
@@ -1596,12 +1607,16 @@ def run_eval_only(args: argparse.Namespace) -> None:
     if metrics_json:
         p = Path(metrics_json)
         p.parent.mkdir(parents=True, exist_ok=True)
+        ft_m = str(getattr(model.fusion, "fusion_type", args.fusion_type))
+        exp_tag = (args.experiment_tag or "").strip()
+        if not exp_tag:
+            exp_tag = f"eval-{args.dataset}-{_fusion_slug(args)}-{args.eval_split}-s{args.seed}"
         payload = {
             "dataset": args.dataset,
             "split": args.eval_split,
             "seed": int(args.seed),
-            "fusion_type": str(getattr(model.fusion, "fusion_type", args.fusion_type)),
-            "experiment_tag": (args.experiment_tag or "").strip(),
+            "fusion_type": ft_m,
+            "experiment_tag": exp_tag,
             "checkpoint": ckpt,
             "from_hub": from_hub,
             "lr": float(args.lr),
@@ -1638,6 +1653,7 @@ def run_eval_only(args: argparse.Namespace) -> None:
             project=args.wandb_project,
             entity=args.wandb_entity or None,
             name=run_name,
+            tags=[str(getattr(model.fusion, "fusion_type", args.fusion_type)), "eval_only"],
             config={
                 "mode": "eval_only",
                 "dataset": args.dataset,

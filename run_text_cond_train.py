@@ -179,10 +179,12 @@ def main() -> None:
     os.chdir(repo_root)
     (repo_root / "checkpoints").mkdir(exist_ok=True)
     dataset_tag = args.dataset.replace("-", "_")
+    fusion_type = str(args.fusion_type)
+    fusion_fs = fusion_type.replace("_", "-")
     if args.finetune_csp_vocab:
-        results_dir = repo_root / "results" / f"{dataset_tag}_finetune_csp_vocab"
+        results_dir = repo_root / "results" / f"{dataset_tag}_finetune_csp_vocab_{fusion_fs}"
     else:
-        results_dir = repo_root / "results" / f"{dataset_tag}_clipstyle"
+        results_dir = repo_root / "results" / f"{dataset_tag}_{fusion_fs}"
     results_dir.mkdir(parents=True, exist_ok=True)
 
     hp_cfg = _load_hparams(repo_root / args.hyperparams_file)
@@ -194,7 +196,6 @@ def main() -> None:
     lr = _require_hparam(merged, "lr", float)
     weight_decay = _require_hparam(merged, "weight_decay", float)
     max_grad_norm = _require_hparam(merged, "max_grad_norm", float)
-    fusion_type = str(args.fusion_type)
 
     if str(args.seed).strip():
         seeds = [str(args.seed).strip()]
@@ -244,9 +245,9 @@ def main() -> None:
     for seed in seeds:
         base_ckpt = _resolve_base_checkpoint(base_ckpt_tpl, seed)
         if args.finetune_csp_vocab:
-            ckpt = f"checkpoints/csp_vocab_{model_tag}_{dataset_tag}_s{seed}_{ts}.pt"
+            ckpt = f"checkpoints/csp_vocab_{model_tag}_{dataset_tag}_{fusion_fs}_s{seed}_{ts}.pt"
         else:
-            ckpt = f"checkpoints/{model_tag}_{dataset_tag}_clipstyle_s{seed}_{ts}.pt"
+            ckpt = f"checkpoints/{model_tag}_{dataset_tag}_{fusion_fs}_s{seed}_{ts}.pt"
         train_cmd = [
             sys.executable,
             "text_cond_train.py",
@@ -293,6 +294,8 @@ def main() -> None:
                 args.vision_backbone,
                 "--dataset",
                 args.dataset,
+                "--fusion-type",
+                fusion_type,
                 "--seed",
                 str(seed),
                 "--hyperparams-file",
@@ -309,6 +312,8 @@ def main() -> None:
                 args.vision_backbone,
                 "--dataset",
                 args.dataset,
+                "--fusion-type",
+                fusion_type,
                 "--seed",
                 str(seed),
                 "--hyperparams-file",
@@ -320,13 +325,13 @@ def main() -> None:
             base_eval_cmd.append("--no-wandb")
         if args.wandb_log_images:
             base_eval_cmd.extend(["--wandb-log-images", "--wandb-max-images", str(args.wandb_max_images)])
-        val_json = results_dir / f"{model_tag}_s{seed}_{ts}_val.json"
-        test_json = results_dir / f"{model_tag}_s{seed}_{ts}_test.json"
+        val_json = results_dir / f"{model_tag}_{fusion_fs}_s{seed}_{ts}_val.json"
+        test_json = results_dir / f"{model_tag}_{fusion_fs}_s{seed}_{ts}_test.json"
         eval_val_cmd = base_eval_cmd + [
             "--eval-split",
             "val",
             "--experiment-tag",
-            f"{model_tag}-s{seed}-{ts}",
+            f"{model_tag}-{fusion_fs}-s{seed}-{ts}",
             "--metrics-json",
             str(val_json),
         ]
@@ -334,7 +339,7 @@ def main() -> None:
             "--eval-split",
             "test",
             "--experiment-tag",
-            f"{model_tag}-s{seed}-{ts}",
+            f"{model_tag}-{fusion_fs}-s{seed}-{ts}",
             "--metrics-json",
             str(test_json),
         ]
@@ -366,7 +371,8 @@ def main() -> None:
 
     if (not args.dry_run) and eval_records:
         plot_path = (
-            results_dir / f"{model_tag}_{dataset_tag}_{ts}_seed_curve_{args.plot_metric}.png"
+            results_dir
+            / f"{model_tag}_{dataset_tag}_{fusion_fs}_{ts}_seed_curve_{args.plot_metric}.png"
         )
         _plot_seed_performance(eval_records, metric_key=args.plot_metric, out_path=plot_path)
 
