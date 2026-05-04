@@ -1,0 +1,39 @@
+{
+  "dataset": "cspref_cgqa",
+  "eval_split": "test",
+  "samples": [
+    {
+      "index_in_manifest": 0,
+      "image_file": "sample_000.png",
+      "split_row_index": 3379,
+      "label_id": 1111,
+      "pair_label_text": "brown horse",
+      "pred_pretrained_id": 2043,
+      "pred_tuned_id": 1111,
+      "pred_pretrained_pair_text": "decorated sign",
+      "pred_tuned_pair_text": "brown horse"
+    },
+    {
+      "index_in_manifest": 1,
+      "image_file": "sample_001.png",
+      "split_row_index": 4222,
+      "label_id": 5177,
+      "pair_label_text": "red couch",
+      "pred_pretrained_id": 4386,
+      "pred_tuned_id": 5177,
+      "pred_pretrained_pair_text": "orange kite",
+      "pred_tuned_pair_text": "red couch"
+    },
+    {
+      "index_in_manifest": 2,
+      "image_file": "sample_002.png",
+      "split_row_index": 4973,
+      "label_id": 2852,
+      "pair_label_text": "gray floor",
+      "pred_pretrained_id": 4155,
+      "pred_tuned_id": 2852,
+      "pred_pretrained_pair_text": "neon sign",
+      "pred_tuned_pair_text": "gray floor"
+    }
+  ]
+}

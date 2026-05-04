@@ -1,0 +1,171 @@
+{
+  "dataset": "cspref_cgqa",
+  "eval_split": "test",
+  "samples": [
+    {
+      "index_in_manifest": 0,
+      "image_file": "sample_000.png",
+      "split_row_index": 3379,
+      "label_id": 1111,
+      "pair_label_text": "brown horse",
+      "pred_pretrained_id": 2964,
+      "pred_tuned_id": 1111,
+      "pred_pretrained_pair_text": "gray street",
+      "pred_tuned_pair_text": "brown horse"
+    },
+    {
+      "index_in_manifest": 1,
+      "image_file": "sample_001.png",
+      "split_row_index": 4973,
+      "label_id": 2852,
+      "pair_label_text": "gray floor",
+      "pred_pretrained_id": 236,
+      "pred_tuned_id": 2852,
+      "pred_pretrained_pair_text": "bent girl",
+      "pred_tuned_pair_text": "gray floor"
+    },
+    {
+      "index_in_manifest": 2,
+      "image_file": "sample_002.png",
+      "split_row_index": 1155,
+      "label_id": 6694,
+      "pair_label_text": "tiled floor",
+      "pred_pretrained_id": 5997,
+      "pred_tuned_id": 6694,
+      "pred_pretrained_pair_text": "small restroom",
+      "pred_tuned_pair_text": "tiled floor"
+    },
+    {
+      "index_in_manifest": 3,
+      "image_file": "sample_003.png",
+      "split_row_index": 1952,
+      "label_id": 25,
+      "pair_label_text": "analog clock",
+      "pred_pretrained_id": 7395,
+      "pred_tuned_id": 25,
+      "pred_pretrained_pair_text": "wood clock",
+      "pred_tuned_pair_text": "analog clock"
+    },
+    {
+      "index_in_manifest": 4,
+      "image_file": "sample_004.png",
+      "split_row_index": 3635,
+      "label_id": 7570,
+      "pair_label_text": "yellow building",
+      "pred_pretrained_id": 5489,
+      "pred_tuned_id": 7570,
+      "pred_pretrained_pair_text": "round tower",
+      "pred_tuned_pair_text": "yellow building"
+    },
+    {
+      "index_in_manifest": 5,
+      "image_file": "sample_005.png",
+      "split_row_index": 3998,
+      "label_id": 3266,
+      "pair_label_text": "green wall",
+      "pred_pretrained_id": 1598,
+      "pred_tuned_id": 3266,
+      "pred_pretrained_pair_text": "colorful statue",
+      "pred_tuned_pair_text": "green wall"
+    },
+    {
+      "index_in_manifest": 6,
+      "image_file": "sample_006.png",
+      "split_row_index": 247,
+      "label_id": 7266,
+      "pair_label_text": "white toilet",
+      "pred_pretrained_id": 1429,
+      "pred_tuned_id": 7266,
+      "pred_pretrained_pair_text": "clean toilet",
+      "pred_tuned_pair_text": "white toilet"
+    },
+    {
+      "index_in_manifest": 7,
+      "image_file": "sample_007.png",
+      "split_row_index": 2614,
+      "label_id": 7172,
+      "pair_label_text": "white platter",
+      "pred_pretrained_id": 2248,
+      "pred_tuned_id": 7172,
+      "pred_pretrained_pair_text": "eaten cake",
+      "pred_tuned_pair_text": "white platter"
+    },
+    {
+      "index_in_manifest": 8,
+      "image_file": "sample_008.png",
+      "split_row_index": 2883,
+      "label_id": 7475,
+      "pair_label_text": "wood table",
+      "pred_pretrained_id": 1717,
+      "pred_tuned_id": 7475,
+      "pred_pretrained_pair_text": "cooking pizza",
+      "pred_tuned_pair_text": "wood table"
+    },
+    {
+      "index_in_manifest": 9,
+      "image_file": "sample_009.png",
+      "split_row_index": 2748,
+      "label_id": 6478,
+      "pair_label_text": "tall tree",
+      "pred_pretrained_id": 4217,
+      "pred_tuned_id": 6478,
+      "pred_pretrained_pair_text": "old tower",
+      "pred_tuned_pair_text": "tall tree"
+    },
+    {
+      "index_in_manifest": 10,
+      "image_file": "sample_010.png",
+      "split_row_index": 842,
+      "label_id": 6930,
+      "pair_label_text": "white bed",
+      "pred_pretrained_id": 983,
+      "pred_tuned_id": 6930,
+      "pred_pretrained_pair_text": "brown bed",
+      "pred_tuned_pair_text": "white bed"
+    },
+    {
+      "index_in_manifest": 11,
+      "image_file": "sample_011.png",
+      "split_row_index": 2343,
+      "label_id": 6977,
+      "pair_label_text": "white car",
+      "pred_pretrained_id": 4086,
+      "pred_tuned_id": 6977,
+      "pred_pretrained_pair_text": "metal tower",
+      "pred_tuned_pair_text": "white car"
+    },
+    {
+      "index_in_manifest": 12,
+      "image_file": "sample_012.png",
+      "split_row_index": 1823,
+      "label_id": 6917,
+      "pair_label_text": "white bag",
+      "pred_pretrained_id": 6490,
+      "pred_tuned_id": 6917,
+      "pred_pretrained_pair_text": "tan basket",
+      "pred_tuned_pair_text": "white bag"
+    },
+    {
+      "index_in_manifest": 13,
+      "image_file": "sample_013.png",
+      "split_row_index": 4218,
+      "label_id": 800,
+      "pair_label_text": "blue tail",
+      "pred_pretrained_id": 6313,
+      "pred_tuned_id": 800,
+      "pred_pretrained_pair_text": "striped box",
+      "pred_tuned_pair_text": "blue tail"
+    },
+    {
+      "index_in_manifest": 14,
+      "image_file": "sample_014.png",
+      "split_row_index": 699,
+      "label_id": 2637,
+      "pair_label_text": "glass bowl",
+      "pred_pretrained_id": 2646,
+      "pred_tuned_id": 2637,
+      "pred_pretrained_pair_text": "glass dish",
+      "pred_tuned_pair_text": "glass bowl"
+    }
+  ]
+}
