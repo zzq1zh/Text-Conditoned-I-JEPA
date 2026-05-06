@@ -1,11 +1,5 @@
 """
 Standalone post-training for CSP-style compositional vocabulary.
-
-Saved ``.pt`` dict bundles include (where applicable):
-
-- ``csp_vocab``, ``meta``, ``args`` — always
-- ``adapter``, ``fusion`` — :class:`TextConditionedVisionModel` head weights (same as ``text_cond_train --finetune-csp-vocab``); eval loads them over ``--base-checkpoint`` when present
-- ``backbone`` — optional; present when training used ``--finetune-vision-backbone`` so ``--eval-only`` matches in-training vision features
 """
 
 from __future__ import annotations

@@ -1,28 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert a TextConditionedVisionModel ``torch.save`` checkpoint (``.pt``) into the Hugging Face Hub layout
-used by ``text_cond_train`` / ``load_text_cond_trainable_from_hub``:
-
-- ``trainable_model.safetensors`` — non-backbone weights only (backbone keys are stripped on upload)
-- ``tc_ijepa_config.json`` — metadata for loading (class names, fusion, HF backbone ids, …)
-
-Supports full checkpoints from ``text_cond_train.py`` (``torch.save(model.state_dict(), ...)``).
-
-Does **not** support CSP vocab bundles (dict with ``csp_vocab`` / ``meta``); those are a different artifact.
-
-Examples::
-
-  uv run python push_text_cond_checkpoint_to_hub.py checkpoints/model.pt \\
-      --repo-id YOUR_USER/your-model --dataset cspref_cgqa --vision-backbone dinov3
-
-  uv run python push_text_cond_checkpoint_to_hub.py checkpoints/model.pt \\
-      --hub-config-json hub_config_partial.json --dataset cspref_mit_states --vision-backbone ijepa \\
-      --repo-id YOUR_USER/your-model
-
-  uv run python push_text_cond_checkpoint_to_hub.py checkpoints/model.pt \\
-      --dataset cspref_cgqa --vision-backbone dinov3 --output-dir ./hf_model_bundle --no-push
-
-Run ``huggingface-cli login`` before uploading (or pass ``--token``).
+Convert a TextConditionedVisionModel ``torch.save`` checkpoint (``.pt``) into the Hugging Face Hub layout.
 """
 
 from __future__ import annotations

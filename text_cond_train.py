@@ -1,12 +1,5 @@
 """
-Fine-tune the text-conditioning adapter + fusion head on a training split (I-JEPA frozen),
-with optional Weights & Biases logging.
-
-``--save`` writes a dict with ``csp_vocab``, ``adapter``, ``fusion``, ``meta``, and ``args``
-(``csp_vocab_train`` / ``--eval-only`` load ``adapter``/``fusion`` when present).
-
-By default uses a CUDA GPU when ``torch.cuda.is_available()``; pass ``--cpu`` or ``--device cpu`` otherwise.
-Default ``--batch-size`` / ``--num-workers`` / ``--log-interval`` assume a large GPU; reduce if OOM.
+Fine-tune the text-conditioning adapter + fusion head on a training split (I-JEPA frozen).
 """
 
 from __future__ import annotations

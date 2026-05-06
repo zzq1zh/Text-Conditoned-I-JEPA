@@ -1,10 +1,5 @@
 """
-Shared vision dataset loading (Hugging Face Datasets) for CSP-reference
-compositional benchmarks: Hub repos with fixed ``train`` / ``val`` / ``test``
-and pair-based labels (``cspref_*``).
-
-See README for attribution to Nayak et al., ICLR 2023.
-Inline comments in English.
+Vision dataset loading for CSP-reference compositional benchmarks.
 """
 
 from __future__ import annotations
@@ -18,7 +13,7 @@ import torch
 from datasets import Dataset, DatasetDict, ClassLabel, load_dataset
 
 
-# CSP-reference datasets (see ``build_csp_hf_datasets.py --mode reference``).
+# CSP-reference datasets (see ``build_csp_hf_datasets.py``).
 DATASET_CONFIG: dict[str, dict[str, Any]] = {
     "cspref_mit_states": {
         "path": "zzq1zh/csp-ref-mit-states",

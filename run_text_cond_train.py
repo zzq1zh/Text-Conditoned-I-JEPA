@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 """
 Unified launcher for CSP-reference datasets + clip-style fusion across vision backbones.
-
-Replaces:
-- train_dinov3_mit_states_clipstyle.sh
-- train_ijepa_mit_states_clipstyle.sh
-- train_vjepa_mit_states_clipstyle.sh
 """
 
 from __future__ import annotations

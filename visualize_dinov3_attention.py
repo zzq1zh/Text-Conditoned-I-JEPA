@@ -1,33 +1,6 @@
 #!/usr/bin/env python3
 """
 Visualize self-attention maps from a Hugging Face DINOv3 ViT backbone.
-
-- Loads ``facebook/dinov3-vitb16-pretrain-lvd1689m`` (or ``--model-id`` / ``--vision-backbone dinov3``).
-- Optional ``--checkpoint``: if the dict contains tuned ``backbone`` weights or ``backbone.*`` keys
-  (from :class:`main.TextConditionedVisionModel` or CSP bundle), loads them; otherwise uses Hub weights.
-- Plots the **CLS → patch** attention (mean over heads) for selected encoder layers.
-
-**CSP compare mode** (``--csp-compare``): given two CSP vocab bundles—one with a finetuned ``backbone`` and one
-without (or whose ``backbone`` tensors are ignored)—load **one** dataset (``--csp-dataset``), scan **only its
-official test split** (Hub ``test`` rows for CSP-style datasets), and collect ``n`` contrast samples where
-**top-1 is correct with the finetuned backbone** but **wrong with pretrained backbone
-only** (bundle ``backbone`` not applied), then plot attentions for both (same logic as single-image mode).
-By default also writes each selected image and ``manifest.json`` under ``{csp_out_dir}/{dataset}_samples/``;
-use ``--csp-save-samples-dir`` to choose another folder, or ``--csp-no-save-samples`` to skip file export.
-
-Uses the Hugging Face credential from ``huggingface-cli login`` when the checkpoint requires Hub access.
-
-Example (single image)::
-
-  uv run python visualize_dinov3_attention.py --image path/to.jpg --checkpoint checkpoints/xxx.pt \\
-    --out attn.png --layers 6 8 9 10 11
-
-Example (CSP backbone compare; bundles must match training ``args`` / ``meta``)::
-
-  uv run python visualize_dinov3_attention.py --csp-compare \\
-    --csp-checkpoint-tuned path/to/with_backbone.pt \\
-    --csp-checkpoint-base path/to/heads_only.pt \\
-    --csp-dataset cspref_mit_states --csp-n-samples 5 --csp-out-dir out_attn
 """
 
 from __future__ import annotations

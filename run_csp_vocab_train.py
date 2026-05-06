@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 """
 Unified launcher for CSP vocabulary post-training across seeds.
-
-Mirrors ``run_text_cond_train.py``: reads ``hyperparameters.json`` (defaults →
-``models.<backbone>`` → ``datasets.<dataset>`` → ``model_dataset``) for the
-full training config. The spawned ``csp_vocab_train.py`` process gets the same
-file and applies any keys not overridden on the command line (e.g.
-``max_grad_norm``, ``num_workers``, schedulers, CSP soft-prompt fields).
 """
 
 from __future__ import annotations

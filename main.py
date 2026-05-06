@@ -1,10 +1,3 @@
-"""
-Hugging Face vision-backbone loading and text-conditioned vision model definitions.
-Fine-tune with ``uv run python text_cond_train.py`` (defaults to CUDA when available;
-use ``--cpu`` or ``--device cpu`` to force CPU). W&B optional. Copy ``.env.example`` to
-``.env`` for ``WANDB_API_KEY`` (optional).
-"""
-
 from __future__ import annotations
 
 import project_env
@@ -33,12 +26,6 @@ DEFAULT_PROMPT_TEMPLATE = "a photo of a {c}."
 def load_clip_text_encoder_for_conditioning(clip_model_id: str) -> CLIPTextModelWithProjection:
     """
     Load only the CLIP text tower + text projection, without spurious "UNEXPECTED" load keys.
-
-    :func:`CLIPTextModelWithProjection.from_pretrained` reads the *full* CLIP checkpoint
-    (vision + ``logit_scale`` + etc.); keys that the text-only module does not use are
-    reported as UNEXPECTED. Instead, load :class:`CLIPModel` (matches the file 1:1), copy
-    ``text_model`` and ``text_projection`` into a :class:`CLIPTextModelWithProjection`, then
-    drop the full model to avoid keeping vision weights in RAM.
     """
     full = CLIPModel.from_pretrained(clip_model_id)
     text = CLIPTextModelWithProjection._from_config(full.text_model.config)
@@ -219,10 +206,6 @@ class TextConditioningModule(nn.Module):
 class FusionHead(nn.Module):
     """
     Fuses visual features and a text conditioning vector into a scalar score.
-    - ``cross_attention``: **sequence** of visual tokens ``(B, N, D_v)`` (or ``(B, D_v)`` as length-1)
-      each attends to one text token, then per-position CLIP-style cosine similarities are **summed**
-      over ``N`` (no mean-pool on the backbone; scalar is a sum of patch scores, scaled).
-    - ``clip_similarity``: pooled ``(B, D_v)`` only — direct projections + normalized dot product.
     """
 
     def __init__(
@@ -301,8 +284,6 @@ class FusionHead(nn.Module):
 class TextConditionedVisionModel(nn.Module):
     """
     Vision backbone (I-JEPA / ViT / DINOv3) optionally frozen + text conditioning + fusion scorer.
-    For ``fusion_type='cross_attention'``, image features are a **token sequence** (no pre-fusion mean-pool).
-    When the backbone is frozen, visual features use inference mode and are detached.
     """
 
     def __init__(

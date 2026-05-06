@@ -1,8 +1,5 @@
 """
 CSP-oriented evaluation for vision–text models (text-cond training + CSP vocab post-train).
-
-Computes optional mean contrastive loss, top-1 / top-5, seen vs unseen breakdown, and CSP-style AUC
-when ``pair_seen_in_train`` is present in batches.
 """
 
 from __future__ import annotations
@@ -21,7 +18,6 @@ from main import TextConditionedVisionModel
 def clip_contrastive_loss(pair_scores: torch.Tensor) -> torch.Tensor:
     """
     CLIP-style symmetric InfoNCE from a pair score matrix.
-    ``pair_scores``: (B, B), diagonal entries are positives.
     """
     if pair_scores.ndim != 2 or pair_scores.size(0) != pair_scores.size(1):
         raise ValueError(

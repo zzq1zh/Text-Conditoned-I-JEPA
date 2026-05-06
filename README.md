@@ -35,7 +35,7 @@ Hugging Face Hub upload or gated model access uses the credential from `huggingf
 - `run_text_cond_train.py`: config-driven multi-seed train+eval launcher (reads `hyperparameters.json`)
 - `main.py`: `TextConditionedVisionModel`, fusion modules, backbone loading helpers
 - `vision_data.py`: dataset registry and split logic
-- `build_csp_hf_datasets.py`: build/push CSP Hugging Face datasets (`--mode clevr` for CLEVR-style `csp_*` releases; `--mode reference` for MIT-States / UT-Zappos / C-GQA)
+- `build_csp_hf_datasets.py`: build/push **CSP reference** Hugging Face datasets (MIT-States / UT-Zappos / C-GQA); optional `--download` / `--prepare`, `--ref-push` to Hub (`--namespace`, `--repo-prefix`, `--ref-only`, `--ref-public`, `--token`; see `python build_csp_hf_datasets.py --help`)
 - `run_evals.py` / `slurm_run_evals.sh`: batch re-run val+test `--eval-only` on checkpoints
 - `visualize_dinov3_attention.py`: visualize ViT **CLS→patch** self-attention (see below)
 

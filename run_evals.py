@@ -1,34 +1,6 @@
 #!/usr/bin/env python3
 """
-Re-run val + test ``--eval-only`` for every checkpoint under a path list or directory.
-
-- Files whose load result is a dict containing ``csp_vocab`` and ``meta`` →
-  ``csp_vocab_train.py --eval-only``.
-- Otherwise → ``text_cond_train.py --eval-only`` (plain ``state_dict``).
-
-For checkpoints saved by ``run_text_cond_train.py`` / ``run_csp_vocab_train.py``, stems are parsed when flags are omitted:
-
-- ``{backbone}_{dataset_tag}_clipstyle_s{seed}_{YYYYMMDD-HHMMSS}`` (text-cond)
-- ``csp_vocab_{backbone}_{dataset_tag}_s{seed}_{YYYYMMDD-HHMMSS}`` (CSP vocab bundle)
-
-``dataset_tag`` uses underscores (e.g. ``cspref_cgqa``), matching ``--dataset``.
-Explicit ``--dataset`` / ``--vision-backbone`` / ``--seed`` override parsed and bundle values.
-
-Examples::
-
-    uv run python run_evals.py \\
-      checkpoints/dinov3_cspref_cgqa_clipstyle_s42_20260502-162807.pt
-
-    uv run python run_evals.py checkpoints/*.pt \\
-      --vision-backbone ijepa --dataset cspref_mit_states --seed 42
-
-    uv run python run_evals.py checkpoints/ --glob 'csp_vocab_*.pt'
-
-    uv run python run_evals.py checkpoints/ --recurse
-
-Val/test metrics JSON go under ``results/`` (see ``--out-dir``). Unless ``--no-summarize`` is set,
-``summarize_eval_metrics.py`` is run on each metrics directory that received JSON files, writing
-``eval_metrics_raw.csv``, ``eval_metrics_summary.*``, and ``eval_plots/`` alongside them.
+run val + test ``--eval-only`` for every checkpoint under a path list or directory.
 """
 
 from __future__ import annotations
