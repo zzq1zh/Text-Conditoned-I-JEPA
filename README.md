@@ -68,13 +68,13 @@ Useful flags:
 Backbone examples (DINOv3 is the default; the first command omits `--vision-backbone` on purpose):
 
 ```bash
-# DINOv3 ViT-B/16 (default preset)
+# DINOv3 ViT-B/16
 uv run python text_cond_train.py --dataset cspref_mit_states --epochs 1
 
-# I-JEPA (preset)
+# I-JEPA
 uv run python text_cond_train.py --vision-backbone ijepa --dataset cspref_mit_states --epochs 1
 
-# V-JEPA 2 (preset)
+# V-JEPA 2
 uv run python text_cond_train.py --vision-backbone vjepa --dataset cspref_mit_states --epochs 1
 ```
 
