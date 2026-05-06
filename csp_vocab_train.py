@@ -4,7 +4,7 @@ Standalone post-training for CSP-style compositional vocabulary.
 Saved ``.pt`` dict bundles include (where applicable):
 
 - ``csp_vocab``, ``meta``, ``args`` — always
-- ``adapter``, ``fusion`` — :class:`TextConditionedIJepa` head weights (same as ``text_cond_train --finetune-csp-vocab``); eval loads them over ``--base-checkpoint`` when present
+- ``adapter``, ``fusion`` — :class:`TextConditionedVisionModel` head weights (same as ``text_cond_train --finetune-csp-vocab``); eval loads them over ``--base-checkpoint`` when present
 - ``backbone`` — optional; present when training used ``--finetune-vision-backbone`` so ``--eval-only`` matches in-training vision features
 """
 
@@ -34,10 +34,9 @@ project_env.load_project_env()
 from main import (  # noqa: E402
     DEFAULT_CLIP_TEXT_ID,
     DEFAULT_PROMPT_TEMPLATE,
-    TextConditionedIJepa,
+    TextConditionedVisionModel,
     VISION_BACKBONE_PRESETS,
     _extract_model_pixel_values,
-    _resolve_device,
     load_vision_processor,
     resolve_vision_model_id,
 )
@@ -267,7 +266,7 @@ def _resolve_train_device(args: argparse.Namespace) -> torch.device:
         if not torch.cuda.is_available():
             raise RuntimeError("You passed --device cuda, but CUDA is unavailable.")
         return torch.device("cuda")
-    return _resolve_device(None)
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def _hf_image_to_pil_rgb(img: Any) -> Any:
@@ -575,7 +574,7 @@ class CspCompositionVocab(nn.Module):
 
 @torch.inference_mode()
 def _build_candidate_text_bank(
-    model: TextConditionedIJepa,
+    model: TextConditionedVisionModel,
     tokenizer: Any,
     class_names: list[str],
     text_template: str,
@@ -593,7 +592,7 @@ def _build_candidate_text_bank(
 
 
 def _make_csp_eval_forward(
-    model: TextConditionedIJepa,
+    model: TextConditionedVisionModel,
     csp_vocab: CspCompositionVocab,
     csp_meta: CspVocabMeta,
     device: torch.device,
@@ -769,7 +768,7 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
     )
 
     finetune_v = bool(getattr(args, "finetune_vision_backbone", False))
-    model = TextConditionedIJepa(
+    model = TextConditionedVisionModel(
         num_labels=n_classes,
         ijepa_id=args.ijepa,
         clip_id=args.clip,
@@ -929,7 +928,7 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
         del w
 
 
-def _load_base_checkpoint_if_any(model: TextConditionedIJepa, checkpoint: str) -> None:
+def _load_base_checkpoint_if_any(model: TextConditionedVisionModel, checkpoint: str) -> None:
     ckpt = (checkpoint or "").strip()
     if not ckpt:
         return
@@ -1001,7 +1000,7 @@ def run_post_training(args: argparse.Namespace) -> None:
             flush=True,
         )
 
-    model = TextConditionedIJepa(
+    model = TextConditionedVisionModel(
         num_labels=n_classes,
         ijepa_id=args.ijepa,
         clip_id=args.clip,
@@ -1308,7 +1307,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dataset", default="cspref_mit_states", choices=list_vision_dataset_keys())
     p.add_argument(
         "--vision-backbone",
-        default="ijepa",
+        default="dinov3",
         choices=tuple(sorted(VISION_BACKBONE_PRESETS.keys())),
         help="Preset HF vision model when --ijepa is empty (must match the base checkpoint).",
     )
@@ -1358,7 +1357,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--base-checkpoint",
         type=str,
         default="",
-        help="Optional pretrained TextConditionedIJepa state_dict for post-training initialization.",
+        help="Optional pretrained TextConditionedVisionModel state_dict for post-training initialization.",
     )
     p.add_argument(
         "--save",

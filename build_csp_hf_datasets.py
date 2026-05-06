@@ -8,7 +8,7 @@ Build and publish Hugging Face dataset repos for compositional tasks in two fami
 2) ``reference`` — CSP reference benchmarks (MIT-States, UT-Zappos, C-GQA), following
    the data flow described in https://github.com/BatsResearch/csp
 
-Requires ``HF_TOKEN`` (or ``huggingface-cli login``), ``datasets``, and ``Pillow``.
+Requires ``datasets`` and ``Pillow``; Hub push uses ``huggingface-cli login`` (or an explicit ``--token`` where supported).
 Optional: ``pip install pyarrow`` for faster local saves.
 """
 
@@ -249,7 +249,7 @@ def run_clevr(args: argparse.Namespace) -> None:
     if args.push:
         token = get_token()
         if not token:
-            print("No HF token; set HF_TOKEN or run huggingface-cli login", file=sys.stderr)
+            print("No Hugging Face token; run huggingface-cli login", file=sys.stderr)
             raise SystemExit(2)
 
     to_run = list(builders) if args.clevr_only == "all" else [args.clevr_only]
@@ -646,7 +646,7 @@ def run_reference(args: argparse.Namespace) -> None:
         if not token:
             token = get_token()
         if not token:
-            print("No HF token; set HF_TOKEN or run huggingface-cli login", file=sys.stderr)
+            print("No Hugging Face token; run huggingface-cli login", file=sys.stderr)
             raise SystemExit(2)
 
     targets = list(DATASET_ROOTS.keys()) if args.ref_only == "all" else [args.ref_only]
@@ -742,7 +742,7 @@ def main() -> None:
     ref_g.add_argument(
         "--token",
         type=str,
-        default=(os.environ.get("HF_TOKEN") or "").strip(),
+        default="",
     )
 
     args = p.parse_args()

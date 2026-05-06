@@ -15,7 +15,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from main import TextConditionedIJepa
+from main import TextConditionedVisionModel
 
 
 def clip_contrastive_loss(pair_scores: torch.Tensor) -> torch.Tensor:
@@ -128,7 +128,7 @@ def compute_auc_csp_style(
 
 
 def make_fixed_bank_forward(
-    model: TextConditionedIJepa,
+    model: TextConditionedVisionModel,
     device: torch.device,
     candidate_text_bank: torch.Tensor,
     *,

@@ -81,7 +81,7 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     p.add_argument(
         "--base-checkpoint",
         default="",
-        help="For --finetune-csp-vocab: init TextConditionedIJepa (strict=False). Supports '{seed}' template.",
+        help="For --finetune-csp-vocab: init TextConditionedVisionModel (strict=False). Supports '{seed}' template.",
     )
     p.add_argument(
         "--plot-metric",

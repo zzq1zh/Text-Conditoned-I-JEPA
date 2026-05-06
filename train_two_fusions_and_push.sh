@@ -17,11 +17,6 @@ if [[ -f ".env" ]]; then
   set +a
 fi
 
-if [[ -z "${HF_TOKEN:-}" ]]; then
-  echo "ERROR: HF_TOKEN is empty. Put it in .env or export HF_TOKEN before running this script."
-  exit 1
-fi
-
 MODE="${MODE:-two_stage}"
 HF_NAMESPACE="${HF_NAMESPACE:-zzq1zh}"
 DATASET="${DATASET:-cspref_mit_states}"
@@ -109,7 +104,6 @@ run_train_eval() {
     --lr "${lr}"
     --weight-decay "${weight_decay}"
     --text-bank-chunk-size "${TEXT_BANK_CHUNK_SIZE}"
-    --hub-token "${HF_TOKEN}"
     --fusion-type "${fusion_type}"
     --save "${ckpt_path}"
   )

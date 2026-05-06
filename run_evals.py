@@ -16,15 +16,15 @@ Explicit ``--dataset`` / ``--vision-backbone`` / ``--seed`` override parsed and 
 
 Examples::
 
-    uv run python rerun_checkpoint_evals.py \\
+    uv run python run_evals.py \\
       checkpoints/dinov3_cspref_cgqa_clipstyle_s42_20260502-162807.pt
 
-    uv run python rerun_checkpoint_evals.py checkpoints/*.pt \\
+    uv run python run_evals.py checkpoints/*.pt \\
       --vision-backbone ijepa --dataset cspref_mit_states --seed 42
 
-    uv run python rerun_checkpoint_evals.py checkpoints/ --glob 'csp_vocab_*.pt'
+    uv run python run_evals.py checkpoints/ --glob 'csp_vocab_*.pt'
 
-    uv run python rerun_checkpoint_evals.py checkpoints/ --recurse
+    uv run python run_evals.py checkpoints/ --recurse
 
 Val/test metrics JSON go under ``results/`` (see ``--out-dir``). Unless ``--no-summarize`` is set,
 ``summarize_eval_metrics.py`` is run on each metrics directory that received JSON files, writing
@@ -219,7 +219,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     args = _parse_args()
     if not args.paths:
-        print("usage: rerun_checkpoint_evals.py <checkpoint.pt|dir> ...", file=sys.stderr)
+        print("usage: run_evals.py <checkpoint.pt|dir> ...", file=sys.stderr)
         sys.exit(2)
 
     repo_root = Path(__file__).resolve().parent

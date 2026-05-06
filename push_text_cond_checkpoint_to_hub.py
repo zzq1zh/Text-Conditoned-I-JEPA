@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert a TextConditionedIJepa ``torch.save`` checkpoint (``.pt``) into the Hugging Face Hub layout
+Convert a TextConditionedVisionModel ``torch.save`` checkpoint (``.pt``) into the Hugging Face Hub layout
 used by ``text_cond_train`` / ``load_text_cond_trainable_from_hub``:
 
 - ``trainable_model.safetensors`` — non-backbone weights only (backbone keys are stripped on upload)
@@ -22,7 +22,7 @@ Examples::
   uv run python push_text_cond_checkpoint_to_hub.py checkpoints/model.pt \\
       --dataset cspref_cgqa --vision-backbone dinov3 --output-dir ./hf_model_bundle --no-push
 
-Set ``HF_TOKEN`` or run ``huggingface-cli login`` before uploading.
+Run ``huggingface-cli login`` before uploading (or pass ``--token``).
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ import torch  # noqa: E402
 from main import (  # noqa: E402
     DEFAULT_CLIP_TEXT_ID,
     DEFAULT_PROMPT_TEMPLATE,
-    TextConditionedIJepa,
+    TextConditionedVisionModel,
     VISION_BACKBONE_PRESETS,
     resolve_vision_model_id,
 )
@@ -63,7 +63,7 @@ def _load_state_dict_from_checkpoint(path: Path) -> dict[str, torch.Tensor]:
     if isinstance(obj, dict) and "csp_vocab" in obj and "meta" in obj:
         raise ValueError(
             "This file looks like a CSP vocab post-training bundle (contains 'csp_vocab' / 'meta'). "
-            "This script only supports TextConditionedIJepa state_dict .pt checkpoints."
+            "This script only supports TextConditionedVisionModel state_dict .pt checkpoints."
         )
     if isinstance(obj, dict):
         for key in ("state_dict", "model", "model_state_dict"):
@@ -171,7 +171,7 @@ def _build_hub_config(
     return cfg
 
 
-def _verify_loads(model: TextConditionedIJepa, sd: dict[str, torch.Tensor]) -> None:
+def _verify_loads(model: TextConditionedVisionModel, sd: dict[str, torch.Tensor]) -> None:
     r = model.load_state_dict(sd, strict=False)
     miss = [k for k in r.missing_keys if not k.startswith("backbone.")]
     if miss:
@@ -184,7 +184,7 @@ def _verify_loads(model: TextConditionedIJepa, sd: dict[str, torch.Tensor]) -> N
         raise RuntimeError(f"Checkpoint has unexpected non-backbone keys: {uexp[:16]!r}")
 
 
-def _write_local_bundle(model: TextConditionedIJepa, hub_cfg: dict[str, Any], out_dir: Path) -> None:
+def _write_local_bundle(model: TextConditionedVisionModel, hub_cfg: dict[str, Any], out_dir: Path) -> None:
     from safetensors.torch import save_file
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -197,7 +197,7 @@ def _write_local_bundle(model: TextConditionedIJepa, hub_cfg: dict[str, Any], ou
 
 def main() -> None:
     p = argparse.ArgumentParser(
-        description="Convert a .pt TextConditionedIJepa checkpoint to Hub safetensors + config, optionally upload.",
+        description="Convert a .pt TextConditionedVisionModel checkpoint to Hub safetensors + config, optionally upload.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument("checkpoint", type=Path, help="Path to .pt state_dict checkpoint")
@@ -230,7 +230,7 @@ def main() -> None:
     p.add_argument(
         "--vision-backbone",
         choices=tuple(sorted(VISION_BACKBONE_PRESETS.keys())),
-        default="ijepa",
+        default="dinov3",
         help="Preset for ijepa_id when not overridden.",
     )
     p.add_argument(
@@ -254,7 +254,7 @@ def main() -> None:
         help="Recorded in hub JSON (must match how the checkpoint was trained).",
     )
     p.add_argument("--private", action="store_true", help="Create/use a private Hub repo.")
-    p.add_argument("--token", default="", help="HF token (else HF_TOKEN / huggingface-cli login).")
+    p.add_argument("--token", default="", help="HF write token (else huggingface-cli login cache).")
     p.add_argument(
         "--no-push",
         action="store_true",
@@ -287,7 +287,7 @@ def main() -> None:
             raise SystemExit(
                 "Provide --dataset (to load class_names), or supply class_names in --hub-config-json."
             )
-        dataset_key = str(hub_partial.get("dataset") or "cifar100")
+        dataset_key = str(hub_partial.get("dataset") or "cspref_mit_states")
 
     if dataset_key not in list_vision_dataset_keys():
         if hub_partial and "class_names" in hub_partial:
@@ -312,7 +312,7 @@ def main() -> None:
     )
 
     sd = _load_state_dict_from_checkpoint(ckpt_path)
-    model = TextConditionedIJepa(
+    model = TextConditionedVisionModel(
         num_labels=int(hub_cfg["num_labels"]),
         ijepa_id=str(hub_cfg["ijepa_id"]),
         clip_id=str(hub_cfg["clip_id"]),

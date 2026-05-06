@@ -4,7 +4,7 @@ Visualize self-attention maps from a Hugging Face DINOv3 ViT backbone.
 
 - Loads ``facebook/dinov3-vitb16-pretrain-lvd1689m`` (or ``--model-id`` / ``--vision-backbone dinov3``).
 - Optional ``--checkpoint``: if the dict contains tuned ``backbone`` weights or ``backbone.*`` keys
-  (from :class:`main.TextConditionedIJepa` or CSP bundle), loads them; otherwise uses Hub weights.
+  (from :class:`main.TextConditionedVisionModel` or CSP bundle), loads them; otherwise uses Hub weights.
 - Plots the **CLS → patch** attention (mean over heads) for selected encoder layers.
 
 **CSP compare mode** (``--csp-compare``): given two CSP vocab bundles—one with a finetuned ``backbone`` and one
@@ -15,7 +15,7 @@ only** (bundle ``backbone`` not applied), then plot attentions for both (same lo
 By default also writes each selected image and ``manifest.json`` under ``{csp_out_dir}/{dataset}_samples/``;
 use ``--csp-save-samples-dir`` to choose another folder, or ``--csp-no-save-samples`` to skip file export.
 
-Requires HF access to the gated DINOv3 repo (``HF_TOKEN`` / ``huggingface-cli login``).
+Uses the Hugging Face credential from ``huggingface-cli login`` when the checkpoint requires Hub access.
 
 Example (single image)::
 
@@ -27,7 +27,7 @@ Example (CSP backbone compare; bundles must match training ``args`` / ``meta``):
   uv run python visualize_dinov3_attention.py --csp-compare \\
     --csp-checkpoint-tuned path/to/with_backbone.pt \\
     --csp-checkpoint-base path/to/heads_only.pt \\
-    --csp-dataset csp_two_object --csp-n-samples 5 --csp-out-dir out_attn
+    --csp-dataset cspref_mit_states --csp-n-samples 5 --csp-out-dir out_attn
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ from csp_vocab_train import (  # noqa: E402
 
 from main import (  # noqa: E402
     DEFAULT_CLIP_TEXT_ID,
-    TextConditionedIJepa,
+    TextConditionedVisionModel,
     _extract_model_pixel_values,
     load_vision_processor,
     resolve_vision_model_id,
@@ -292,8 +292,8 @@ def _load_csp_textconditioned(
     device: torch.device,
     *,
     load_backbone_weights: bool,
-) -> TextConditionedIJepa:
-    """Instantiate :class:`TextConditionedIJepa` from bundle; optionally skip backbone tensors."""
+) -> TextConditionedVisionModel:
+    """Instantiate :class:`TextConditionedVisionModel` from bundle; optionally skip backbone tensors."""
     ba = _bundle_training_args(bundle)
     finetune_v = bool(_resolve_args_field(ba, "finetune_vision_backbone", False))
     clip_id = str(_resolve_args_field(ba, "clip", DEFAULT_CLIP_TEXT_ID) or DEFAULT_CLIP_TEXT_ID)
@@ -303,7 +303,7 @@ def _load_csp_textconditioned(
     fusion_type = str(_resolve_args_field(ba, "fusion_type", "cross_attention"))
 
     n_classes = len(csp_meta.pairs)
-    model = TextConditionedIJepa(
+    model = TextConditionedVisionModel(
         num_labels=n_classes,
         ijepa_id=ijepa_id,
         clip_id=clip_id,
@@ -344,7 +344,7 @@ def _load_csp_textconditioned(
 
 def _build_csp_vocab(
     bundle: dict[str, Any],
-    model: TextConditionedIJepa,
+    model: TextConditionedVisionModel,
     csp_meta: CspVocabMeta,
     tok: Any,
     device: torch.device | str,
@@ -375,7 +375,7 @@ def _assert_meta_pairs_equal(meta_a: dict[str, Any], meta_b: dict[str, Any], pat
         )
 
 
-def _backbone_to_eager_attn(model: TextConditionedIJepa, ijepa_id: str, device: torch.device) -> None:
+def _backbone_to_eager_attn(model: TextConditionedVisionModel, ijepa_id: str, device: torch.device) -> None:
     bb = AutoModel.from_pretrained(
         ijepa_id,
         torch_dtype=torch.float32,
@@ -389,7 +389,7 @@ def _backbone_to_eager_attn(model: TextConditionedIJepa, ijepa_id: str, device: 
 
 @torch.inference_mode()
 def _csp_logits_one_image(
-    model: TextConditionedIJepa,
+    model: TextConditionedVisionModel,
     csp_vocab: CspCompositionVocab,
     csp_meta: CspVocabMeta,
     pixel_values: torch.Tensor,
@@ -466,8 +466,8 @@ class _CspContrastSample:
 def _scan_csp_contrast_samples(
     *,
     dataset_key: str,
-    model_t: TextConditionedIJepa,
-    model_b: TextConditionedIJepa,
+    model_t: TextConditionedVisionModel,
+    model_b: TextConditionedVisionModel,
     csp_t: CspCompositionVocab,
     csp_b: CspCompositionVocab,
     csp_meta: CspVocabMeta,
@@ -628,8 +628,8 @@ def _save_csp_compare_sample_artifacts(
 def _figure_csp_backbone_compare(
     samples: list[_CspContrastSample],
     *,
-    model_t: TextConditionedIJepa,
-    model_b: TextConditionedIJepa,
+    model_t: TextConditionedVisionModel,
+    model_b: TextConditionedVisionModel,
     bundle_tuned: dict[str, Any],
     proc: Any,
     device: torch.device,
@@ -822,7 +822,7 @@ def main() -> None:
     p.add_argument(
         "--csp-dataset",
         default=None,
-        help="Single vision_data key for --csp-compare (e.g. csp_two_object). Required with --csp-compare.",
+        help="Single vision_data key for --csp-compare (e.g. cspref_mit_states). Required with --csp-compare.",
     )
     p.add_argument(
         "--csp-max-scan",

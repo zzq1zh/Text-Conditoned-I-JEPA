@@ -6,7 +6,7 @@
 #SBATCH -n 4
 #SBATCH --mem=16G
 #SBATCH -t 24:00:00
-#SBATCH -J rerun_eval
+#SBATCH -J run_evals
 #SBATCH -o slurm-%j.out
 #SBATCH -e slurm-%j.err
 
@@ -22,20 +22,20 @@ cd "$SLURM_SUBMIT_DIR"
 
 source ~/.local/bin/env
 
-# Re-run val + test eval for every checkpoint; see rerun_checkpoint_evals.py --help.
+# Re-run val + test eval for every checkpoint; see run_evals.py --help.
 #
 # Usage examples:
-#   sbatch slurm_rerun_checkpoint_evals.sh
+#   sbatch slurm_run_evals.sh
 #       → defaults to: checkpoints/ --recurse
-#   sbatch slurm_rerun_checkpoint_evals.sh my_ckpts/ --recurse
-#   sbatch slurm_rerun_checkpoint_evals.sh checkpoints/ --glob 'csp_vocab_*.pt'
-#   sbatch slurm_rerun_checkpoint_evals.sh ckpt1.pt ckpt2.pt --vision-backbone dinov3 --dataset cspref_cgqa
-#   sbatch slurm_rerun_checkpoint_evals.sh checkpoints/ --recurse --no-summarize
-#   HYPERPARAMS_FILE=/path/to/hyperparameters.json sbatch slurm_rerun_checkpoint_evals.sh
-#   WANDB_PROJECT=myproj sbatch slurm_rerun_checkpoint_evals.sh checkpoints/ --recurse --wandb
+#   sbatch slurm_run_evals.sh my_ckpts/ --recurse
+#   sbatch slurm_run_evals.sh checkpoints/ --glob 'csp_vocab_*.pt'
+#   sbatch slurm_run_evals.sh ckpt1.pt ckpt2.pt --vision-backbone dinov3 --dataset cspref_cgqa
+#   sbatch slurm_run_evals.sh checkpoints/ --recurse --no-summarize
+#   HYPERPARAMS_FILE=/path/to/hyperparameters.json sbatch slurm_run_evals.sh
+#   WANDB_PROJECT=myproj sbatch slurm_run_evals.sh checkpoints/ --recurse --wandb
 #
 # Extra tokens can be passed via env (evaluated before positional args):
-#   RERUN_PREFIX_ARGS="--dry-run" sbatch slurm_rerun_checkpoint_evals.sh
+#   RERUN_PREFIX_ARGS="--dry-run" sbatch slurm_run_evals.sh
 
 if [[ -n "${HYPERPARAMS_FILE:-}" ]]; then
   export HYPERPARAMS_FILE
@@ -49,9 +49,9 @@ fi
 # shellcheck disable=SC2206
 PREFIX=( ${RERUN_PREFIX_ARGS:-} )
 if [[ $# -eq 0 ]]; then
-  EVAL_CMD=(uv run python rerun_checkpoint_evals.py "${PREFIX[@]}" checkpoints/ --recurse)
+  EVAL_CMD=(uv run python run_evals.py "${PREFIX[@]}" checkpoints/ --recurse)
 else
-  EVAL_CMD=(uv run python rerun_checkpoint_evals.py "${PREFIX[@]}" "$@")
+  EVAL_CMD=(uv run python run_evals.py "${PREFIX[@]}" "$@")
 fi
 
 echo "Command: ${EVAL_CMD[*]}"

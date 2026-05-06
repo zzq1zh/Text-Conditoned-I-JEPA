@@ -36,12 +36,11 @@ from transformers import AutoTokenizer
 # Project imports (run from repo root, e.g. `uv run python text_cond_train.py ...`)
 from main import (  # noqa: E402
     DEFAULT_CLIP_TEXT_ID,
-    DEFAULT_IJEPA_ID,
+    DEFAULT_DINOV3_ID,
     DEFAULT_PROMPT_TEMPLATE,
-    TextConditionedIJepa,
+    TextConditionedVisionModel,
     VISION_BACKBONE_PRESETS,
     _extract_model_pixel_values,
-    _resolve_device,
     load_vision_processor,
     resolve_vision_model_id,
 )
@@ -318,8 +317,8 @@ def _apply_hyperparams_from_file(args: argparse.Namespace, argv: list[str]) -> N
 
 def _resolve_train_device(args: argparse.Namespace) -> torch.device:
     """
-    Default training device: use the first available CUDA GPU (same as :func:`main._resolve_device`
-    with ``None``). Use ``--cpu`` or ``--device cpu`` to force CPU, or ``--device cuda`` to
+    Default training device: use the first available CUDA GPU when ``torch.cuda.is_available()``.
+    Use ``--cpu`` or ``--device cpu`` to force CPU, or ``--device cuda`` to
     require a GPU and fail if CUDA is not available.
     """
     if args.cpu or args.device == "cpu":
@@ -333,7 +332,7 @@ def _resolve_train_device(args: argparse.Namespace) -> torch.device:
             )
         return torch.device("cuda")
     # auto: prefer GPU, then CPU
-    return _resolve_device(None)
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class HfPilImageDataset(Dataset):
@@ -409,7 +408,7 @@ def make_collate_fn(
 
 @torch.inference_mode()
 def _build_candidate_text_bank(
-    model: TextConditionedIJepa,
+    model: TextConditionedVisionModel,
     tokenizer: Any,
     class_names: list[str],
     text_template: str,
@@ -524,7 +523,7 @@ def _make_wandb_images(
 
 @torch.inference_mode()
 def _build_eval_preview_images(
-    model: TextConditionedIJepa,
+    model: TextConditionedVisionModel,
     loader: DataLoader,
     device: torch.device,
     candidate_text_bank: torch.Tensor,
@@ -545,7 +544,7 @@ def _build_eval_preview_images(
     return []
 
 
-def _export_trainable_state_dict(model: TextConditionedIJepa) -> dict[str, torch.Tensor]:
+def _export_trainable_state_dict(model: TextConditionedVisionModel) -> dict[str, torch.Tensor]:
     """I-JEPA backbone is frozen and loaded from the Hub; omit it to keep uploads small."""
     out: dict[str, torch.Tensor] = {}
     for k, v in model.state_dict().items():
@@ -586,7 +585,7 @@ def _hub_config_dict(
 
 
 def push_text_cond_to_hub(
-    model: TextConditionedIJepa,
+    model: TextConditionedVisionModel,
     config: dict[str, Any],
     repo_id: str,
     *,
@@ -599,7 +598,7 @@ def push_text_cond_to_hub(
     token = (token or "").strip() or get_token()
     if not token:
         raise RuntimeError(
-            "Hugging Face token not found. Set HF_TOKEN in .env (see .env.example) or run: huggingface-cli login"
+            "Hugging Face token not found. Run: huggingface-cli login (or pass a token to this API)."
         )
     trainable = _export_trainable_state_dict(model)
     api = HfApi(token=token)
@@ -630,7 +629,7 @@ def load_text_cond_trainable_from_hub(
     device: torch.device,
     *,
     token: str | None = None,
-) -> tuple[TextConditionedIJepa, dict[str, Any]]:
+) -> tuple[TextConditionedVisionModel, dict[str, Any]]:
     from huggingface_hub import get_token, hf_hub_download
     from safetensors.torch import load_file
 
@@ -643,7 +642,7 @@ def load_text_cond_trainable_from_hub(
         raise ValueError(
             f"Config model_type must be 'text_cond_ijepa', got {cfg.get('model_type')!r}"
         )
-    model = TextConditionedIJepa(
+    model = TextConditionedVisionModel(
         num_labels=int(cfg["num_labels"]),
         ijepa_id=str(cfg["ijepa_id"]),
         clip_id=str(cfg["clip_id"]),
@@ -694,10 +693,10 @@ def run_finetune(args: argparse.Namespace) -> None:
         tvt.val.dataset, tvt.val.image_column, tvt.val.label_key
     )
     if len(train_ds) == 0 or len(val_ds) == 0:
-        raise RuntimeError("Train or val split is empty. Check --max-train/val-samples and val-fraction")
+        raise RuntimeError("Train or val split is empty. Check --max-train/val-samples")
 
     im_proc = load_vision_processor(args.ijepa)
-    model = TextConditionedIJepa(
+    model = TextConditionedVisionModel(
         num_labels=n_classes,
         ijepa_id=args.ijepa,
         clip_id=args.clip,
@@ -1073,7 +1072,7 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
     )
     val_ds = HfPilImageDataset(tvt.val.dataset, tvt.val.image_column, tvt.val.label_key)
     if len(train_ds) == 0 or len(val_ds) == 0:
-        raise RuntimeError("Train or val split is empty. Check --max-train/val-samples and val-fraction")
+        raise RuntimeError("Train or val split is empty. Check --max-train/val-samples")
 
     im_proc = load_vision_processor(args.ijepa)
     collate = make_collate_fn(im_proc)
@@ -1112,7 +1111,7 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
             flush=True,
         )
 
-    model = TextConditionedIJepa(
+    model = TextConditionedVisionModel(
         num_labels=n_classes,
         ijepa_id=args.ijepa,
         clip_id=args.clip,
@@ -1520,7 +1519,7 @@ def run_eval_only(args: argparse.Namespace) -> None:
         ijepa_id = args.ijepa
         clip_id = args.clip
         tpl = args.text_template
-        model = TextConditionedIJepa(
+        model = TextConditionedVisionModel(
             num_labels=n_classes,
             ijepa_id=ijepa_id,
             clip_id=clip_id,
@@ -1701,16 +1700,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--vision-backbone",
         choices=tuple(sorted(VISION_BACKBONE_PRESETS.keys())),
-        default="ijepa",
+        default="dinov3",
         help=(
             "Backbone preset alias used when --ijepa is empty. "
-            f"Defaults to I-JEPA ({DEFAULT_IJEPA_ID})."
+            f"Defaults to DINOv3 ({DEFAULT_DINOV3_ID})."
         ),
     )
     p.add_argument("--clip", default=DEFAULT_CLIP_TEXT_ID, help="HuggingFace CLIP id (text + tokenizer)")
     p.add_argument(
         "--dataset",
-        default="cifar100",
+        default="cspref_mit_states",
         choices=list_vision_dataset_keys(),
     )
     p.add_argument(
@@ -1722,8 +1721,18 @@ def build_parser() -> argparse.ArgumentParser:
             "explicit CLI flags still take precedence."
         ),
     )
-    p.add_argument("--val-fraction", type=float, default=0.1)
-    p.add_argument("--split-seed", type=int, default=0)
+    p.add_argument(
+        "--val-fraction",
+        type=float,
+        default=0.1,
+        help="Ignored for CSP-reference datasets (Hub train/val/test used as published).",
+    )
+    p.add_argument(
+        "--split-seed",
+        type=int,
+        default=0,
+        help="Ignored for CSP-reference datasets.",
+    )
     p.add_argument("--text-template", default=DEFAULT_PROMPT_TEMPLATE)
     p.add_argument(
         "--max-train-samples",
@@ -1801,7 +1810,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--base-checkpoint",
         default="",
         help=(
-            "Optional TextConditionedIJepa state_dict for workflows that still use it; "
+            "Optional TextConditionedVisionModel state_dict for workflows that still use it; "
             "disallowed with --finetune-csp-vocab (raises if set). See csp_vocab_train.py --base-checkpoint "
             "for CSP-style training from a clip-style base."
         ),
@@ -1894,7 +1903,8 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help=(
             f"If set, after training upload ``trainable_model.safetensors`` + {HUB_CONFIG_FILENAME} "
-            f"(I-JEPA backbone not uploaded; needs HF_TOKEN). Use full id ``user/model`` or ``org/model``"
+            f"(vision backbone not in the Hub repo; ensure Hub access via huggingface-cli login). "
+            f"Use full id ``user/model`` or ``org/model``"
         ),
     )
     h.add_argument(
@@ -1903,7 +1913,7 @@ def build_parser() -> argparse.ArgumentParser:
     h.add_argument(
         "--hub-token",
         default="",
-        help="Write token; default: HF_TOKEN in .env or the huggingface-cli login cache",
+        help="Write token for Hub push; default: huggingface-cli login cache",
     )
     g = p.add_argument_group("evaluation (use with --eval-only)")
     g.add_argument(

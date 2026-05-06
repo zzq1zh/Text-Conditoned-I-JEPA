@@ -1,14 +1,17 @@
-# Text-Conditioned I-JEPA
+# Text-conditioned vision models
 
-Minimal training/evaluation pipeline for text-conditioned I-JEPA on CIFAR and CSP-style datasets.
+Training and evaluation pipeline for **vision–language contrastive fine-tuning**: a Hugging Face **vision backbone** (ViT-style encoders) paired with a **CLIP text encoder**, fused for classification-style scoring on CIFAR and CSP-style datasets.
 
-## What is implemented now
+**Default `--vision-backbone` preset is DINOv3** (`facebook/dinov3-vitb16-pretrain-lvd1689m`). Use `--vision-backbone {ijepa,vjepa}` or an explicit HF id via **`--ijepa`** (legacy flag name) to switch encoders.
 
-- Frozen I-JEPA image backbone + CLIP text tower (text tower can be unfrozen with `--finetune-clip-text`)
-- Fusion heads: `cross_attention`, `linear`, `clip_similarity`
-- **Single training objective**: bidirectional InfoNCE (CLIP-style contrastive loss)
-- Eval metrics: overall top-1/top-5, seen top-1/top-5, unseen top-1/top-5, `auc_csp_style`
-- Optional W&B logging and optional Hugging Face model upload
+## What is implemented
+
+- **Vision backbone**: loaded with `transformers.AutoModel` + image/video processor; **frozen by default** (unfreeze with `--finetune-vision-backbone`). Presets: `dinov3` (default), `ijepa`, `vjepa`; override with `--ijepa <hub/model-id>`.
+- **CLIP text tower** + adapter; optionally train CLIP text with `--finetune-clip-text`.
+- **Fusion heads**: `cross_attention`, `linear`, `clip_similarity`.
+- **Single training objective**: bidirectional InfoNCE (CLIP-style contrastive loss).
+- **Eval metrics**: overall top-1/top-5, seen/unseen splits where applicable, `auc_csp_style`.
+- Optional **Weights & Biases** logging and optional **Hugging Face Hub** upload of trainable head weights (backbone loaded from Hub by id at eval time).
 
 ## Setup
 
@@ -20,19 +23,54 @@ cp .env.example .env
 
 Recommended `.env` keys:
 
-- `HF_TOKEN` (for pushing/loading private Hub repos)
 - `WANDB_API_KEY` (if using W&B)
 - `WANDB_PROJECT` (optional default project name)
+
+Hugging Face Hub upload or gated model access uses the credential from `huggingface-cli login` (no project `.env` token required).
 
 ## Main scripts
 
 - `text_cond_train.py`: train / eval entrypoint
 - `csp_vocab_train.py`: CSP-style compositional vocabulary training entrypoint
 - `run_text_cond_train.py`: config-driven multi-seed train+eval launcher (reads `hyperparameters.json`)
-- `main.py`: model definitions (`TextConditionedIJepa`, fusion heads)
+- `main.py`: `TextConditionedVisionModel`, fusion modules, backbone loading helpers
 - `vision_data.py`: dataset registry and split logic
 - `build_csp_hf_datasets.py`: build/push CSP Hugging Face datasets (`--mode clevr` for CLEVR-style `csp_*` releases; `--mode reference` for MIT-States / UT-Zappos / C-GQA)
 - `train_two_fusions_and_push.sh`: run `clip_similarity` and `cross_attention`, upload both, optional grid search + multi-seed
+- `run_evals.py` / `slurm_run_evals.sh`: batch re-run val+test `--eval-only` on checkpoints
+- `visualize_dinov3_attention.py`: visualize ViT **CLS→patch** self-attention (see below)
+
+## Attention visualization (`visualize_dinov3_attention.py`)
+
+Utility to plot **encoder self-attention** maps (mean over heads: **CLS token → image patches**) for a Hugging Face **ViT-style** backbone—default preset **DINOv3** (`--vision-backbone dinov3`, or `--model-id`).
+
+**CLI modes**
+
+1. **Single image** — pass `--image`, optional `--checkpoint` (loads `backbone` / `backbone.*` from a bundle or full model dict if present; else Hub weights). Choose `--layers` (0-based block indices) and `--out` for the figure.
+2. **`--csp-compare`** — load two **CSP vocab** `.pt` bundles (`--csp-checkpoint-tuned` with finetuned `backbone`, `--csp-checkpoint-base` with heads only / backbone ignored), scan **`--csp-dataset` official test split** for **contrast samples** (tuned top-1 correct, pretrained-only wrong), then draw side-by-side attention grids. Optional export of PNGs + `manifest.json` under `--csp-out-dir` (see `--csp-save-samples-dir`, `--csp-no-save-samples`).
+
+**Main functions (by role)**
+
+| Area | Functions | Purpose |
+|------|-----------|---------|
+| Backbone I/O | `_extract_backbone_state`, `_load_backbone` | Pull vision `state_dict` from checkpoint; build `AutoModel` with `attn_implementation="eager"` and optional tuned weights. |
+| ViT layout | `_encoder_layers`, `_patch_grid` | Locate transformer blocks; infer patch grid height/width and prefix token count from `config`. |
+| Attention | `_forward_attentions`, `_forward_with_attention_hooks`, `_cls_to_patch_map`, `_upsample_map` | Run forward with attentions (or hooks fallback); turn last-layer weights into a patch map; resize to image size for overlay. |
+| CSP bundles | `_require_csp_bundle`, `_bundle_training_args`, `_ijepa_id_from_bundle`, `_meta_from_bundle`, `_load_csp_textconditioned`, `_build_csp_vocab`, `_assert_meta_pairs_equal`, `_backbone_to_eager_attn` | Parse checkpoints; rebuild `TextConditionedVisionModel` + `CspCompositionVocab`; align `meta` across bundles; swap backbone to eager attention when needed. |
+| CSP contrast + figures | `_csp_logits_one_image`, `_extract_layer_attention_maps`, `_scan_csp_contrast_samples`, `_save_csp_compare_sample_artifacts`, `_figure_csp_backbone_compare`, `run_csp_backbone_compare` | Per-image CSP logits; layer-wise maps for two models; search test split; save samples; build comparison figure; orchestrate compare mode. |
+| Entry | `main` | Argument parsing; dispatch single-image vs `--csp-compare`. |
+
+Examples (from the script docstring):
+
+```bash
+uv run python visualize_dinov3_attention.py --image path/to.jpg --checkpoint checkpoints/xxx.pt \
+  --out attn.png --layers 6 8 9 10 11
+
+uv run python visualize_dinov3_attention.py --csp-compare \
+  --csp-checkpoint-tuned path/to/with_backbone.pt \
+  --csp-checkpoint-base path/to/heads_only.pt \
+  --csp-dataset cspref_mit_states --csp-n-samples 5 --csp-out-dir out_attn
+```
 
 ## Training
 
@@ -50,27 +88,31 @@ uv run python text_cond_train.py \
 Useful flags:
 
 - `--fusion-type {cross_attention,linear,clip_similarity}`
-- `--csp-vocab-train` (enable CSP-style attr/object compositional vocabulary)
+- `--finetune-csp-vocab` (train CSP-style attr/object compositional soft prompts in `text_cond_train.py`; see script help for constraints)
 - `--csp-vocab-init {random,text}`
 - `--csp-attr-dropout 0.3`
 - `--csp-pair-separator " "`
-- `--vision-backbone {ijepa,vjepa,dinov3}` (or pass explicit model id with `--ijepa ...`)
+- `--vision-backbone {dinov3,ijepa,vjepa}` — default **`dinov3`** if omitted; or set explicit HF vision model id with `--ijepa <id>`
 - `--hyperparams-file hyperparameters.json`
 - `--finetune-clip-text`
-- `--hub-model-id user/repo` (push after training)
+- `--finetune-vision-backbone`
+- `--hub-model-id user/repo` (push trainable weights after training; backbone still referenced by id in config)
 - `--no-wandb` (disable W&B)
 
-Backbone examples:
+Backbone examples (DINOv3 is the default; the first command omits `--vision-backbone` on purpose):
 
 ```bash
-# V-JEPA 2
-uv run python text_cond_train.py --vision-backbone vjepa --dataset cspref_mit_states --epochs 1
+# DINOv3 ViT-B/16 (default preset)
+uv run python text_cond_train.py --dataset cspref_mit_states --epochs 1
 
-# DINOv3 ViT-B/16
-uv run python text_cond_train.py --vision-backbone dinov3 --dataset cspref_mit_states --epochs 1
+# I-JEPA (preset)
+uv run python text_cond_train.py --vision-backbone ijepa --dataset cspref_mit_states --epochs 1
+
+# V-JEPA 2 (preset)
+uv run python text_cond_train.py --vision-backbone vjepa --dataset cspref_mit_states --epochs 1
 ```
 
-Dedicated CSP vocab training (defaults to `--csp-vocab-train --csp-vocab-init text --fusion-type clip_similarity`):
+Dedicated CSP vocab training with `csp_vocab_train.py` (defaults include `--csp-vocab-init text`):
 
 ```bash
 uv run python csp_vocab_train.py \
@@ -82,7 +124,7 @@ uv run python csp_vocab_train.py \
 
 ## Config-driven experiments
 
-`run_text_cond_train.py` now reads all runtime/training parameters from `hyperparameters.json` (no CLI args):
+`run_text_cond_train.py` reads runtime/training parameters from `hyperparameters.json` (see script for how CLI interacts with the file):
 
 ```bash
 uv run python run_text_cond_train.py
@@ -90,8 +132,7 @@ uv run python run_text_cond_train.py
 
 ## Hyperparameters file
 
-1. `defaults`
-2. `datasets.<dataset>`
+Merge order (CLI still wins when a flag is explicitly passed): `defaults` → `models.<vision_backbone>` → `datasets.<dataset>` → `model_dataset.<vision_backbone>.<dataset>`.
 
 ## Eval only
 
@@ -103,8 +144,21 @@ uv run python text_cond_train.py --eval-only --from-hub user/model --dataset csp
 
 ## Split behavior
 
-- For `csp_*` and `cspref_*`: use official Hub `train/val/test` directly.
-- For non-CSP datasets: split Hub train into train/val and use configured test logic from `vision_data.py`.
+Registry datasets (`cspref_*`) use the published Hub `train` / `val` / `test` splits only.
+CLI flags `--val-fraction` and `--split-seed` are accepted for compatibility but ignored.
+
+## Datasets attribution
+
+Parts of the **datasets** code paths—especially registry entries, loaders, and eval helpers for **CSP / compositional** Hub splits in `vision_data.py` (and related dataset build tooling)—derive from or follow the setup in:
+
+```bibtex
+@inproceedings{nayak2023learning,
+  title     = {Learning to Compose Soft Prompts for Compositional Zero-Shot Learning},
+  author    = {Nayak, Nihal V. and Yu, Peilin and Bach, Stephen H.},
+  booktitle = {International Conference on Learning Representations},
+  year      = {2023}
+}
+```
 
 ## Batch script: automatic two-stage / single / grid
 

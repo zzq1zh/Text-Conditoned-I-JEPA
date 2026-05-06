@@ -30,7 +30,7 @@ source ~/.local/bin/env
 # CSP backbone compare (one dataset):
 #   sbatch slurm_visualize_dinov3_attention.sh --csp-compare \
 #     --csp-checkpoint-tuned path/with_backbone.pt --csp-checkpoint-base path/heads_only.pt \
-#     --csp-dataset csp_two_object --csp-n-samples 5 --csp-out-dir csp_attention_out
+#     --csp-dataset cspref_mit_states --csp-n-samples 5 --csp-out-dir csp_attention_out
 #
 # Extra flags before passthrough (array split on whitespace):
 #   VIZ_PREFIX_ARGS="--amp" sbatch slurm_visualize_dinov3_attention.sh --csp-compare ...
@@ -40,7 +40,7 @@ if [[ $# -eq 0 ]]; then
   echo "  (Slurm forwards arguments after the script name to this job script.)"
   echo "Examples:"
   echo "  sbatch slurm_visualize_dinov3_attention.sh --image sample.jpg --out maps.png"
-  echo "  sbatch slurm_visualize_dinov3_attention.sh --csp-compare --csp-dataset csp_two_object \\"
+  echo "  sbatch slurm_visualize_dinov3_attention.sh --csp-compare --csp-dataset cspref_mit_states \\"
   echo "    --csp-checkpoint-tuned a.pt --csp-checkpoint-base b.pt"
   exit 2
 fi
