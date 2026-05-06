@@ -88,14 +88,6 @@ uv run python csp_vocab_train.py \
   --save ckpt_csp_vocab.pt
 ```
 
-## Config-driven experiments
-
-`run_text_cond_train.py` reads runtime/training parameters from `hyperparameters.json`:
-
-```bash
-uv run python run_text_cond_train.py
-```
-
 ## Eval only
 
 ```bash
