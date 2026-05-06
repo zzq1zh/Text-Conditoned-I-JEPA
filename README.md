@@ -62,7 +62,7 @@ Useful flags:
 - `--hyperparams-file hyperparameters.json`
 - `--finetune-clip-text`
 - `--finetune-vision-backbone`
-- `--hub-model-id user/repo` (push trainable weights after training; backbone still referenced by id in config)
+- `--hub-model-id user/repo` (push trainable weights after training)
 - `--no-wandb` (disable W&B)
 
 Backbone examples (DINOv3 is the default; the first command omits `--vision-backbone` on purpose):
