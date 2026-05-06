@@ -90,15 +90,11 @@ uv run python csp_vocab_train.py \
 
 ## Config-driven experiments
 
-`run_text_cond_train.py` reads runtime/training parameters from `hyperparameters.json` (see script for how CLI interacts with the file):
+`run_text_cond_train.py` reads runtime/training parameters from `hyperparameters.json`:
 
 ```bash
 uv run python run_text_cond_train.py
 ```
-
-## Hyperparameters file
-
-Merge order (CLI still wins when a flag is explicitly passed): `defaults` → `models.<vision_backbone>` → `datasets.<dataset>` → `model_dataset.<vision_backbone>.<dataset>`.
 
 ## Eval only
 
@@ -128,11 +124,6 @@ uv run python visualize_dinov3_attention.py --csp-compare \
   --csp-checkpoint-base path/to/heads_only.pt \
   --csp-dataset cspref_mit_states --csp-n-samples 5 --csp-out-dir out_attn
 ```
-
-## Split behavior
-
-Registry datasets (`cspref_*`) use the published Hub `train` / `val` / `test` splits only.
-CLI flags `--val-fraction` and `--split-seed` are accepted for compatibility but ignored.
 
 ## Datasets attribution
 
