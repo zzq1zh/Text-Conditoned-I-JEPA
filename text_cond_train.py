@@ -1774,7 +1774,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fusion-hidden", type=int, default=512)
     p.add_argument(
         "--fusion-type",
-        choices=("cross_attention", "linear", "clip_similarity"),
+        choices=("cross_attention", "clip_similarity"),
         default="cross_attention",
         help="Fusion head type for visual+text conditioning. `clip_similarity` uses CLIP-style normalized dot-product scoring.",
     )

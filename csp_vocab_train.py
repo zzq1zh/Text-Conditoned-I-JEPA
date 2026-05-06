@@ -1333,7 +1333,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fusion-hidden", type=int, default=512)
     p.add_argument(
         "--fusion-type",
-        choices=("cross_attention", "linear", "clip_similarity"),
+        choices=("cross_attention", "clip_similarity"),
         default="clip_similarity",
     )
     p.add_argument("--text-template", type=str, default=DEFAULT_PROMPT_TEMPLATE)

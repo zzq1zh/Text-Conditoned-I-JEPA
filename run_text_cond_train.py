@@ -43,7 +43,7 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     p.add_argument(
         "--fusion-type",
         default=(os.environ.get("FUSION_TYPE", "") or "clip_similarity").strip(),
-        choices=("cross_attention", "linear", "clip_similarity"),
+        choices=("cross_attention", "clip_similarity"),
         help=(
             "Fusion head (not read from hyperparameters.json). "
             "Override default via env FUSION_TYPE or this flag."

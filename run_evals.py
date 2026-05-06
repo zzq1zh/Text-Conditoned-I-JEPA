@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-run val + test ``--eval-only`` for every checkpoint under a path list or directory.
+Run val + test ``--eval-only`` for every checkpoint under a path list or directory.
 """
 
 from __future__ import annotations

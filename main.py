@@ -217,10 +217,7 @@ class FusionHead(nn.Module):
     ) -> None:
         super().__init__()
         self.fusion_type = fusion_type
-        if self.fusion_type == "linear":
-            # Pairwise score head: (image, text) -> scalar score.
-            self.score_head = nn.Linear(vis_dim + cond_dim, 1)
-        elif self.fusion_type == "clip_similarity":
+        if self.fusion_type == "clip_similarity":
             # CLIP-style pair score: learned projections + normalized dot product with logit scale.
             self.visual_proj = nn.Linear(vis_dim, hidden, bias=False)
             self.text_proj = nn.Linear(cond_dim, hidden, bias=False)
@@ -237,17 +234,10 @@ class FusionHead(nn.Module):
             self.logit_scale = nn.Parameter(torch.tensor(math.log(1.0 / 0.07)))
         else:
             raise ValueError(
-                f"Unsupported fusion_type={self.fusion_type!r}; expected 'cross_attention', 'linear', or 'clip_similarity'"
+                f"Unsupported fusion_type={self.fusion_type!r}; expected 'cross_attention' or 'clip_similarity'"
             )
 
     def forward(self, visual: torch.Tensor, text_cond: torch.Tensor) -> torch.Tensor:
-        if self.fusion_type == "linear":
-            if visual.ndim != 2:
-                raise ValueError(
-                    f"fusion_type='linear' expects visual (B, D_v); got shape {tuple(visual.shape)}"
-                )
-            s = self.score_head(torch.cat([visual, text_cond], dim=-1))
-            return s.squeeze(-1)
         if self.fusion_type == "clip_similarity":
             if visual.ndim != 2:
                 raise ValueError(

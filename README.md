@@ -8,7 +8,7 @@ Training and evaluation pipeline for **vision–language contrastive fine-tuning
 
 - **Vision backbone**: loaded with `transformers.AutoModel` + image/video processor; **frozen by default** (unfreeze with `--finetune-vision-backbone`). Presets: `dinov3` (default), `ijepa`, `vjepa`; override with `--ijepa <hub/model-id>`.
 - **CLIP text tower** + adapter; optionally train CLIP text with `--finetune-clip-text`.
-- **Fusion heads**: `cross_attention`, `linear`, `clip_similarity`.
+- **Fusion heads**: `cross_attention`, `clip_similarity`.
 - **Single training objective**: bidirectional InfoNCE (CLIP-style contrastive loss).
 - **Eval metrics**: overall top-1/top-5, seen/unseen splits where applicable, `auc_csp_style`.
 - Optional **Weights & Biases** logging and optional **Hugging Face Hub** upload of trainable head weights (backbone loaded from Hub by id at eval time).
@@ -16,7 +16,6 @@ Training and evaluation pipeline for **vision–language contrastive fine-tuning
 ## Setup
 
 ```bash
-cd /path/to/final-project
 uv sync
 cp .env.example .env
 ```
@@ -86,7 +85,7 @@ uv run python text_cond_train.py \
 
 Useful flags:
 
-- `--fusion-type {cross_attention,linear,clip_similarity}`
+- `--fusion-type {cross_attention,clip_similarity}`
 - `--finetune-csp-vocab` (train CSP-style attr/object compositional soft prompts in `text_cond_train.py`; see script help for constraints)
 - `--csp-vocab-init {random,text}`
 - `--csp-attr-dropout 0.3`
