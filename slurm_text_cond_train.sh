@@ -28,7 +28,6 @@ source ~/.local/bin/env
 #   sbatch slurm_text_cond_train.sh ijepa cspref_ut_zappos
 #   sbatch slurm_text_cond_train.sh vjepa cspref_cgqa
 #   TRAIN_TARGET=vjepa TRAIN_DATASET=cspref_ut_zappos WANDB_PROJECT=myproj sbatch slurm_text_cond_train.sh
-#   sbatch slurm_text_cond_train.sh two_fusions cspref_mit_states
 #   sbatch slurm_text_cond_train.sh csp_posttrain cspref_mit_states "" /path/to/base.ckpt
 #   sbatch slurm_text_cond_train.sh csp_posttrain cspref_mit_states my-wandb-project /path/to/base.ckpt vjepa
 #   FINETUNE_CSP_VOCAB=1 sbatch slurm_text_cond_train.sh ijepa cspref_mit_states
@@ -37,7 +36,7 @@ source ~/.local/bin/env
 #     → appends --finetune-vision-backbone (with FINETUNE_CSP_VOCAB=1, unfreezes vision during CSP vocab training too)
 #   FUSION_TYPE=cross_attention sbatch slurm_text_cond_train.sh dinov3 cspref_mit_states my-wandb
 #     → passes --fusion-type to run_text_cond_train (default: clip_similarity)
-TARGET="${1:-${TRAIN_TARGET:-two_fusions}}"
+TARGET="${1:-${TRAIN_TARGET:-dinov3}}"
 DATASET="${2:-${TRAIN_DATASET:-cspref_mit_states}}"
 W_PROJECT="${3:-${WANDB_PROJECT:-}}"
 BASE_CKPT="${4:-${CSP_BASE_CKPT:-}}"
@@ -47,9 +46,6 @@ FINETUNE_VISION_BACKBONE="${FINETUNE_VISION_BACKBONE:-0}"
 FUSION_TYPE="${FUSION_TYPE:-clip_similarity}"
 
 case "${TARGET}" in
-  two_fusions|two-stage|two_stage)
-    TRAIN_CMD=(bash train_two_fusions_and_push.sh)
-    ;;
   dinov3|dino)
     TRAIN_CMD=(uv run python run_text_cond_train.py --vision-backbone dinov3 --dataset "${DATASET}" --fusion-type "${FUSION_TYPE}")
     ;;
@@ -67,7 +63,7 @@ case "${TARGET}" in
     ;;
   *)
     echo "Unsupported target: ${TARGET}"
-    echo "Supported: two_fusions, dinov3, ijepa, vjepa, csp_posttrain, or a custom .sh path"
+    echo "Supported: dinov3, ijepa, vjepa, csp_posttrain, or a custom .sh path"
     exit 2
     ;;
 esac
@@ -117,11 +113,7 @@ else
 fi
 echo "Command: ${TRAIN_CMD[*]}"
 
-if [[ "${TARGET}" == "two_fusions" || "${TARGET}" == "two-stage" || "${TARGET}" == "two_stage" ]]; then
-  DATASET="${DATASET}" "${TRAIN_CMD[@]}"
-else
-  "${TRAIN_CMD[@]}"
-fi
+"${TRAIN_CMD[@]}"
 
 echo "============================================"
 echo "Finished:  $(date)"

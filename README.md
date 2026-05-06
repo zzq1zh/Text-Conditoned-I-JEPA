@@ -36,7 +36,6 @@ Hugging Face Hub upload or gated model access uses the credential from `huggingf
 - `main.py`: `TextConditionedVisionModel`, fusion modules, backbone loading helpers
 - `vision_data.py`: dataset registry and split logic
 - `build_csp_hf_datasets.py`: build/push CSP Hugging Face datasets (`--mode clevr` for CLEVR-style `csp_*` releases; `--mode reference` for MIT-States / UT-Zappos / C-GQA)
-- `train_two_fusions_and_push.sh`: run `clip_similarity` and `cross_attention`, upload both, optional grid search + multi-seed
 - `run_evals.py` / `slurm_run_evals.sh`: batch re-run val+test `--eval-only` on checkpoints
 - `visualize_dinov3_attention.py`: visualize ViT **CLS→patch** self-attention (see below)
 
@@ -159,41 +158,3 @@ Parts of the **datasets** code paths—especially registry entries, loaders, and
   year      = {2023}
 }
 ```
-
-## Batch script: automatic two-stage / single / grid
-
-Default (`MODE=two_stage`, reads `.env`):
-
-- Stage 1: run grid on one seed (`STAGE1_SEED`, default `0`)
-- Auto-select top-k configs per fusion on val (`TOP_K`, default `1`)
-- Stage 2: run selected configs on 5 seeds (`STAGE2_SEED_LIST`, default `0,1,2,3,4`)
-
-```bash
-bash train_two_fusions_and_push.sh
-```
-
-Other modes:
-
-```bash
-MODE=single bash train_two_fusions_and_push.sh
-MODE=grid bash train_two_fusions_and_push.sh
-```
-
-Optional overrides:
-
-- `STAGE1_SEED=0`
-- `STAGE2_SEED_LIST=0,1,2,3,4`
-- `TOP_K=1`
-- `SELECT_SPLIT=val`
-- `SELECT_METRIC=auc_csp_style`
-- `SEED_LIST=0,1,2,3,4` (for `MODE=single/grid`)
-- `LR_LIST=5e-3,5e-4,5e-5`
-- `BATCH_SIZE_LIST=128,256`
-- `WEIGHT_DECAY_LIST=1e-5,5e-5`
-- `DATASET`, `EPOCHS`, `HF_NAMESPACE`, `MODEL_PREFIX`, `SAVE_DIR`
-
-Output artifacts from batch script:
-
-- `MODE=two_stage`: `results/stage1/*` and `results/stage2/*`
-- `MODE=single`: `results/single/*`
-- `MODE=grid`: `results/grid/*`
