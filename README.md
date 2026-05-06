@@ -6,7 +6,7 @@ Training and evaluation pipeline for **vision–language contrastive fine-tuning
 
 ## What is implemented
 
-- **Vision backbone**: loaded with `transformers.AutoModel` + image/video processor; **frozen by default** (unfreeze with `--finetune-vision-backbone`). Presets: `dinov3` (default), `ijepa`, `vjepa`; override with `--ijepa <hub/model-id>`.
+- **Vision backbone**: loaded with `transformers.AutoModel` + image/video processor; **frozen by default** (unfreeze with `--finetune-vision-backbone`).
 - **CLIP text tower** + adapter; optionally train CLIP text with `--finetune-clip-text`.
 - **Fusion heads**: `cross_attention`, `clip_similarity`.
 - **Single training objective**: bidirectional InfoNCE (CLIP-style contrastive loss).
