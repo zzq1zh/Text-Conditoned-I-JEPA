@@ -1,6 +1,6 @@
 # Text-conditioned DINOV3
 
-Training and evaluation pipeline for **vision–language contrastive fine-tuning**: a Hugging Face **vision backbone** (ViT-style encoders) paired with a **CLIP text encoder**, fused for classification-style scoring on CSP-style datasets.
+This project aims to explore the use of a lightweight fusion head to align vision backbones such as DINOv3 with texts, and to evaluate the approach on three datasets: MIT-States, UT-Zappos, and C-GQA.
 
 **Default `--vision-backbone` preset is DINOv3** (`facebook/dinov3-vitb16-pretrain-lvd1689m`). Use `--vision-backbone {dinov3, ijepa, vjepa}` to switch encoders.
 
