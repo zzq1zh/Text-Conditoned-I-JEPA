@@ -38,27 +38,6 @@ Hugging Face Hub upload or gated model access uses the credential from `huggingf
 - `run_evals.py` / `slurm_run_evals.sh`: batch re-run val+test `--eval-only` on checkpoints
 - `visualize_dinov3_attention.py`: visualize ViT **CLS→patch** self-attention (see below)
 
-## Attention visualization (`visualize_dinov3_attention.py`)
-
-Utility to plot **encoder self-attention** maps (mean over heads: **CLS token → image patches**) for a Hugging Face **ViT-style** backbone—default preset **DINOv3** (`--vision-backbone dinov3`, or `--model-id`).
-
-**CLI modes**
-
-1. **Single image** — pass `--image`, optional `--checkpoint` (loads `backbone` / `backbone.*` from a bundle or full model dict if present; else Hub weights). Choose `--layers` (0-based block indices) and `--out` for the figure.
-2. **`--csp-compare`** — load two **CSP vocab** `.pt` bundles (`--csp-checkpoint-tuned` with finetuned `backbone`, `--csp-checkpoint-base` with heads only / backbone ignored), scan **`--csp-dataset` official test split** for **contrast samples** (tuned top-1 correct, pretrained-only wrong), then draw side-by-side attention grids. Optional export of PNGs + `manifest.json` under `--csp-out-dir` (see `--csp-save-samples-dir`, `--csp-no-save-samples`).
-
-Examples:
-
-```bash
-uv run python visualize_dinov3_attention.py --image path/to.jpg --checkpoint checkpoints/xxx.pt \
-  --out attn.png --layers 6 8 9 10 11
-
-uv run python visualize_dinov3_attention.py --csp-compare \
-  --csp-checkpoint-tuned path/to/with_backbone.pt \
-  --csp-checkpoint-base path/to/heads_only.pt \
-  --csp-dataset cspref_mit_states --csp-n-samples 5 --csp-out-dir out_attn
-```
-
 ## Training
 
 Example:
@@ -127,6 +106,27 @@ Merge order (CLI still wins when a flag is explicitly passed): `defaults` → `m
 uv run python text_cond_train.py --eval-only --dataset cspref_mit_states --checkpoint ckpt_cross_attn.pt --eval-split val
 uv run python text_cond_train.py --eval-only --dataset cspref_mit_states --checkpoint ckpt_cross_attn.pt --eval-split test
 uv run python text_cond_train.py --eval-only --from-hub user/model --dataset cspref_mit_states --eval-split test
+```
+
+## Attention visualization (`visualize_dinov3_attention.py`)
+
+Utility to plot **encoder self-attention** maps (mean over heads: **CLS token → image patches**) for a Hugging Face **ViT-style** backbone—default preset **DINOv3** (`--vision-backbone dinov3`, or `--model-id`).
+
+**CLI modes**
+
+1. **Single image** — pass `--image`, optional `--checkpoint` (loads `backbone` / `backbone.*` from a bundle or full model dict if present; else Hub weights). Choose `--layers` (0-based block indices) and `--out` for the figure.
+2. **`--csp-compare`** — load two **CSP vocab** `.pt` bundles (`--csp-checkpoint-tuned` with finetuned `backbone`, `--csp-checkpoint-base` with heads only / backbone ignored), scan **`--csp-dataset` official test split** for **contrast samples** (tuned top-1 correct, pretrained-only wrong), then draw side-by-side attention grids. Optional export of PNGs + `manifest.json` under `--csp-out-dir` (see `--csp-save-samples-dir`, `--csp-no-save-samples`).
+
+Examples:
+
+```bash
+uv run python visualize_dinov3_attention.py --image path/to.jpg --checkpoint checkpoints/xxx.pt \
+  --out attn.png --layers 6 8 9 10 11
+
+uv run python visualize_dinov3_attention.py --csp-compare \
+  --csp-checkpoint-tuned path/to/with_backbone.pt \
+  --csp-checkpoint-base path/to/heads_only.pt \
+  --csp-dataset cspref_mit_states --csp-n-samples 5 --csp-out-dir out_attn
 ```
 
 ## Split behavior
