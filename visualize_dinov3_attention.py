@@ -273,7 +273,7 @@ def _load_csp_textconditioned(
     ijepa_id = _ijepa_id_from_bundle(bundle)
     cond_dim = int(_resolve_args_field(ba, "cond_dim", 256))
     fusion_hidden = int(_resolve_args_field(ba, "fusion_hidden", 512))
-    fusion_type = str(_resolve_args_field(ba, "fusion_type", "cross_attention"))
+    fusion_type = str(_resolve_args_field(ba, "fusion_type", "clip_similarity"))
 
     n_classes = len(csp_meta.pairs)
     model = TextConditionedVisionModel(

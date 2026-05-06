@@ -2,7 +2,7 @@
 
 This CSCI 1430 final project explores the use of a lightweight fusion head to align vision backbones such as DINOv3 with textual labels, and evaluates the approach on three datasets: MIT-States, UT-Zappos, and C-GQA.
 
-**Default `--vision-backbone` preset is DINOv3** (`facebook/dinov3-vitb16-pretrain-lvd1689m`). Use `--vision-backbone {dinov3, ijepa, vjepa}` to switch encoders.
+**Default `--vision-backbone` preset is DINOv3** (`timm/vit_base_patch16_dinov3.lvd1689m`). Use `--vision-backbone {dinov3, ijepa, vjepa}` to switch encoders.
 
 ## What is implemented
 
@@ -27,15 +27,40 @@ Recommended `.env` keys:
 
 Hugging Face Hub upload or gated model access uses the credential from `huggingface-cli login`.
 
+## Quick Start
+
+Repo root; hyperparameters from `hyperparameters.json` unless overridden. Add `--no-wandb` to skip W&B.
+
+### Training
+
+```bash
+# Text-conditioned head (+ bundled val/test); checkpoints → checkpoints/
+uv run python run_text_cond_train.py --vision-backbone dinov3 --dataset cspref_mit_states --seed 42
+
+# CSP vocab post-train (needs a base .pt from above or from JSON base_checkpoint)
+uv run python run_csp_vocab_train.py --vision-backbone dinov3 --dataset cspref_mit_states --seed 42 \
+  --base-checkpoint checkpoints/<your_clip_stage>.pt
+```
+
+### Eval
+
+```bash
+# Re-run val+test on every checkpoint under checkpoints/ (auto-picks text_cond vs CSP bundle)
+uv run python run_evals.py checkpoints/
+```
+
+If backbone/dataset/seed cannot be inferred from the path, add e.g. `--vision-backbone dinov3 --dataset cspref_mit_states --seed 42`.
+
 ## Main scripts
 
 - `text_cond_train.py`: train / eval entrypoint
 - `csp_vocab_train.py`: CSP-style compositional vocabulary training entrypoint
-- `run_text_cond_train.py`: config-driven multi-seed train+eval launcher (reads `hyperparameters.json`)
+- `run_text_cond_train.py`: config-driven multi-seed train+eval launcher (reads `hyperparameters.json`; see **Quick Start**)
+- `run_csp_vocab_train.py`: CSP vocab multi-seed launcher over `csp_vocab_train.py` (see **Quick Start**)
 - `main.py`: `TextConditionedVisionModel`, fusion modules, backbone loading helpers
 - `vision_data.py`: dataset registry and split logic
 - `build_csp_hf_datasets.py`: build/push **CSP reference** Hugging Face datasets (MIT-States / UT-Zappos / C-GQA); optional `--download` / `--prepare`, `--ref-push` to Hub (`--namespace`, `--repo-prefix`, `--ref-only`, `--ref-public`, `--token`; see `python build_csp_hf_datasets.py --help`)
-- `run_evals.py` / `slurm_run_evals.sh`: batch re-run val+test `--eval-only` on checkpoints
+- `run_evals.py` / `slurm_run_evals.sh`: batch re-run val+test `--eval-only` on checkpoints (see **Quick Start** for `run_evals.py`)
 - `visualize_dinov3_attention.py`: visualize ViT **CLS→patch** self-attention (see below)
 
 ## Training
@@ -82,6 +107,7 @@ Dedicated CSP vocab training with `csp_vocab_train.py` (defaults include `--csp-
 
 ```bash
 uv run python csp_vocab_train.py \
+  --base-checkpoint ckpt_cross_attn.pt \
   --dataset cspref_mit_states \
   --epochs 20 \
   --batch-size 128 \

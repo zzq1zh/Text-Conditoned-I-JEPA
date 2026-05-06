@@ -40,7 +40,7 @@ def load_clip_text_encoder_for_conditioning(clip_model_id: str) -> CLIPTextModel
 # Hub checkpoint ids for `--vision-backbone` presets. Default alias: ``dinov3``.
 DEFAULT_IJEPA_ID = "facebook/ijepa_vith14_1k"
 DEFAULT_VJEPA_ID = "facebook/vjepa2-vitl-fpc64-256"
-DEFAULT_DINOV3_ID = "facebook/dinov3-vitb16-pretrain-lvd1689m"
+DEFAULT_DINOV3_ID = "timm/vit_base_patch16_dinov3.lvd1689m"
 VISION_BACKBONE_PRESETS: dict[str, str] = {
     "ijepa": DEFAULT_IJEPA_ID,
     "vjepa": DEFAULT_VJEPA_ID,
@@ -160,6 +160,24 @@ def forward_vision_backbone(
     return seq
 
 
+def vision_backbone_embed_dim(model: PreTrainedModel) -> int:
+    """
+    Patch/token embedding width for ViT-style vision backbones.
+    Standard HF ViTs use ``config.hidden_size``; timm-wrapped models use ``config.num_features``.
+    """
+    cfg = model.config
+    hs = getattr(cfg, "hidden_size", None)
+    if hs is not None:
+        return int(hs)
+    nf = getattr(cfg, "num_features", None)
+    if nf is not None:
+        return int(nf)
+    raise AttributeError(
+        f"Cannot infer vision embedding size from {type(cfg).__name__} "
+        "(expected hidden_size or num_features)."
+    )
+
+
 class TextConditioningModule(nn.Module):
     """
     Encodes text with a frozen (by default) CLIP text+projection stack, then maps
@@ -213,7 +231,7 @@ class FusionHead(nn.Module):
         vis_dim: int,
         cond_dim: int,
         hidden: int = 512,
-        fusion_type: str = "cross_attention",
+        fusion_type: str = "clip_similarity",
     ) -> None:
         super().__init__()
         self.fusion_type = fusion_type
@@ -283,7 +301,7 @@ class TextConditionedVisionModel(nn.Module):
         clip_id: str = DEFAULT_CLIP_TEXT_ID,
         cond_dim: int = 256,
         fusion_hidden: int = 512,
-        fusion_type: str = "cross_attention",
+        fusion_type: str = "clip_similarity",
         freeze_text_encoder: bool = True,
         freeze_vision_backbone: bool = True,
     ) -> None:
@@ -294,7 +312,7 @@ class TextConditionedVisionModel(nn.Module):
             for p in self.backbone.parameters():
                 p.requires_grad = False
             self.backbone.eval()
-        vis_dim = int(self.backbone.config.hidden_size)
+        vis_dim = vision_backbone_embed_dim(self.backbone)
 
         self.text_cond = TextConditioningModule(
             clip_model_id=clip_id,

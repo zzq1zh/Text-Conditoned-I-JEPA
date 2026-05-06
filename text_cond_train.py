@@ -16,6 +16,7 @@ import os
 import sys
 import tempfile
 import time
+from datetime import datetime
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -121,8 +122,8 @@ def _wandb_model_suffix(args: argparse.Namespace) -> str:
 
 
 def _fusion_slug(args: argparse.Namespace) -> str:
-    """Hyphenated ``--fusion-type`` for default local filenames (e.g. ``cross-attention``)."""
-    return str(getattr(args, "fusion_type", "cross_attention")).strip().replace("_", "-")
+    """Hyphenated ``--fusion-type`` for default local filenames (e.g. ``clip-similarity``)."""
+    return str(getattr(args, "fusion_type", "clip_similarity")).strip().replace("_", "-")
 
 
 def _default_train_wandb_run_name(args: argparse.Namespace) -> str:
@@ -641,7 +642,7 @@ def load_text_cond_trainable_from_hub(
         clip_id=str(cfg["clip_id"]),
         cond_dim=int(cfg["cond_dim"]),
         fusion_hidden=int(cfg["fusion_hidden"]),
-        fusion_type=str(cfg.get("fusion_type", "cross_attention")),
+        fusion_type=str(cfg.get("fusion_type", "clip_similarity")),
         freeze_text_encoder=not bool(cfg.get("finetune_clip_text", False)),
         freeze_vision_backbone=not bool(cfg.get("finetune_vision_backbone", False)),
     )
@@ -1010,6 +1011,24 @@ def run_finetune(args: argparse.Namespace) -> None:
         )
 
 
+def _checkpoints_dir() -> Path:
+    d = Path("checkpoints")
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _default_finetune_save_path(args: argparse.Namespace) -> str:
+    """
+    Default ``--save`` for standard training when ``--save`` is omitted.
+    Matches ``run_text_cond_train.py`` naming (under ``checkpoints/``).
+    """
+    model_tag = str(args.vision_backbone).replace("-", "")
+    dataset_tag = str(args.dataset).replace("-", "_")
+    fusion_fs = str(args.fusion_type).replace("_", "-")
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return str(_checkpoints_dir() / f"{model_tag}_{dataset_tag}_{fusion_fs}_s{args.seed}_{ts}.pt")
+
+
 def _default_csp_vocab_train_wandb_run_name(args: argparse.Namespace) -> str:
     return (
         f"csp-vocab-{args.dataset}-{args.fusion_type}-seed{args.seed}-{_wandb_model_suffix(args)}"
@@ -1018,8 +1037,13 @@ def _default_csp_vocab_train_wandb_run_name(args: argparse.Namespace) -> str:
 
 def _default_csp_vocab_bundle_save_path(args: argparse.Namespace) -> str:
     """Default ``--save`` when ``--finetune-csp-vocab`` and ``--save`` omitted."""
-    ds = str(args.dataset).replace("-", "_")
-    return f"csp_vocab_{ds}_{_fusion_slug(args)}_s{args.seed}.pt"
+    model_tag = str(args.vision_backbone).replace("-", "")
+    dataset_tag = str(args.dataset).replace("-", "_")
+    fusion_fs = str(args.fusion_type).replace("_", "-")
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return str(
+        _checkpoints_dir() / f"csp_vocab_{model_tag}_{dataset_tag}_{fusion_fs}_s{args.seed}_{ts}.pt"
+    )
 
 
 def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
@@ -1775,7 +1799,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--fusion-type",
         choices=("cross_attention", "clip_similarity"),
-        default="cross_attention",
+        default="clip_similarity",
         help="Fusion head type for visual+text conditioning. `clip_similarity` uses CLIP-style normalized dot-product scoring.",
     )
     p.add_argument(
@@ -1888,7 +1912,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum number of images logged per image logging step.",
     )
     p.add_argument(
-        "--save", default="", help="Optional path to save model.state_dict() after training"
+        "--save",
+        default="",
+        help=(
+            "Path to save after training. If omitted, writes under checkpoints/ with an auto name "
+            "(see run_text_cond_train.py naming)."
+        ),
     )
     h = p.add_argument_group("Hugging Face Hub (set --hub-model-id to push after training; or use --from-hub)")
     h.add_argument(
@@ -1962,6 +1991,8 @@ def main() -> None:
             args.save = _default_csp_vocab_bundle_save_path(args)
         run_finetune_csp_vocab(args)
     else:
+        if not _arg_was_explicit(argv, "save") and not (args.save or "").strip():
+            args.save = _default_finetune_save_path(args)
         run_finetune(args)
 
 
