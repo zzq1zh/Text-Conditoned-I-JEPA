@@ -1,6 +1,6 @@
-# Text-conditioned DINOV3
+# Understanding DinoV3 Representations with Compositional Reasoning
 
-This project aims to explore the use of a lightweight fusion head to align vision backbones such as DINOv3 with textual labels, and to evaluate the approach on three datasets: MIT-States, UT-Zappos, and C-GQA.
+This CSCI 1430 project explores the use of a lightweight fusion head to align vision backbones such as DINOv3 with textual labels, and evaluates the approach on three datasets: MIT-States, UT-Zappos, and C-GQA.
 
 **Default `--vision-backbone` preset is DINOv3** (`facebook/dinov3-vitb16-pretrain-lvd1689m`). Use `--vision-backbone {dinov3, ijepa, vjepa}` to switch encoders.
 
