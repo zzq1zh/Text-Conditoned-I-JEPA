@@ -29,7 +29,7 @@ Hugging Face Hub upload or gated model access uses the credential from `huggingf
 
 ## Quick Start
 
-Repo root; hyperparameters from `hyperparameters.json` unless overridden. Add `--no-wandb` to skip W&B.
+Hyperparameters from `hyperparameters.json` unless overridden. Add `--no-wandb` to skip W&B.
 
 ### Training
 
