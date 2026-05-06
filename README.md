@@ -45,7 +45,7 @@ uv run python run_csp_vocab_train.py --vision-backbone dinov3 --dataset cspref_m
 ### Eval
 
 ```bash
-# Re-run val+test on every checkpoint under checkpoints/ (auto-picks text_cond vs CSP bundle)
+# Re-run val+test on every checkpoint under checkpoints/
 uv run python run_evals.py checkpoints/
 ```
 
