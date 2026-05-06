@@ -25,7 +25,7 @@ Recommended `.env` keys:
 - `WANDB_API_KEY` (if using W&B)
 - `WANDB_PROJECT` (optional default project name)
 
-Hugging Face Hub upload or gated model access uses the credential from `huggingface-cli login` (no project `.env` token required).
+Hugging Face Hub upload or gated model access uses the credential from `huggingface-cli login`.
 
 ## Main scripts
 
