@@ -11,7 +11,7 @@ Training and evaluation pipeline for **vision–language contrastive fine-tuning
 - **Fusion heads**: `cross_attention`, `clip_similarity`.
 - **Single training objective**: bidirectional InfoNCE (CLIP-style contrastive loss).
 - **Eval metrics**: overall top-1/top-5, seen/unseen splits where applicable, `auc_csp_style`.
-- Optional **Weights & Biases** logging and optional **Hugging Face Hub** upload of trainable head weights (backbone loaded from Hub by id at eval time).
+- Optional **Weights & Biases** logging and optional **Hugging Face Hub** upload of trainable head weights.
 
 ## Setup
 
