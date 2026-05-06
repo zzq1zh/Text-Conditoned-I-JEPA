@@ -65,11 +65,11 @@ Useful flags:
 - `--hub-model-id user/repo` (push trainable weights after training)
 - `--no-wandb` (disable W&B)
 
-Backbone examples (DINOv3 is the default; the first command omits `--vision-backbone` on purpose):
+Backbone examples:
 
 ```bash
 # DINOv3 ViT-B/16
-uv run python text_cond_train.py --dataset cspref_mit_states --epochs 1
+uv run python text_cond_train.py --vision-backbone dinov3 --dataset cspref_mit_states --epochs 1
 
 # I-JEPA
 uv run python text_cond_train.py --vision-backbone ijepa --dataset cspref_mit_states --epochs 1
