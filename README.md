@@ -47,10 +47,6 @@ uv run python run_csp_vocab_train.py --vision-backbone dinov3 --dataset cspref_m
 **All checkpoints in a folder**:
 
 ```bash
-<<<<<<< HEAD
-# Re-run val+test on every checkpoint under checkpoints/
-=======
->>>>>>> fb8accd (Refactor codebase)
 uv run python run_evals.py checkpoints/
 ```
 
