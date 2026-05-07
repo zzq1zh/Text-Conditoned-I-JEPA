@@ -31,7 +31,7 @@
       "epochs": 20,
       "batch_size": 128,
       "num_workers": 4,
-      "lr": 5e-4,
+      "lr": 5e-5,
       "scheduler_type": "none",
       "warmup_ratio": 0.0,
       "min_lr_ratio": 0.1,

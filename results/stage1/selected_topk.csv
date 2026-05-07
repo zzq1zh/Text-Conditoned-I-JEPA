@@ -1,2 +1,0 @@
-fusion_type,tag,rank,lr,batch_size,weight_decay,score
-clip_similarity,clip-sim,1,5e-05,128,5e-05,0.0256794176415061
