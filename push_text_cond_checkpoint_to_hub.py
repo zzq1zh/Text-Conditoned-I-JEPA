@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Convert a TextConditionedVisionModel ``torch.save`` checkpoint (``.pt``) into the Hugging Face Hub layout.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -15,22 +10,22 @@ import project_env
 
 project_env.load_project_env()
 
-import torch  # noqa: E402
+import torch
 
-from main import (  # noqa: E402
+from main import (
     DEFAULT_CLIP_TEXT_ID,
     DEFAULT_PROMPT_TEMPLATE,
     TextConditionedVisionModel,
     VISION_BACKBONE_PRESETS,
     resolve_vision_model_id,
 )
-from text_cond_train import (  # noqa: E402
+from text_cond_train import (
     HUB_CONFIG_FILENAME,
     HUB_WEIGHTS_FILENAME,
     _export_trainable_state_dict,
     push_text_cond_to_hub,
 )
-from vision_data import (  # noqa: E402
+from vision_data import (
     list_vision_dataset_keys,
     load_vision_train_val_test_specs,
 )

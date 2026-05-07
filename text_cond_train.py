@@ -1,7 +1,3 @@
-"""
-Fine-tune the text-conditioning adapter + fusion head on a training split (I-JEPA frozen).
-"""
-
 from __future__ import annotations
 
 import project_env
@@ -27,8 +23,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-# Project imports (run from repo root, e.g. `uv run python text_cond_train.py ...`)
-from main import (  # noqa: E402
+from main import (
     DEFAULT_CLIP_TEXT_ID,
     DEFAULT_DINOV3_ID,
     DEFAULT_PROMPT_TEMPLATE,
@@ -38,7 +33,7 @@ from main import (  # noqa: E402
     load_vision_processor,
     resolve_vision_model_id,
 )
-from vision_data import (  # noqa: E402
+from vision_data import (
     csp_vocab_allowed_class_indices,
     list_vision_dataset_keys,
     load_vision_train_val_test_specs,
@@ -46,12 +41,12 @@ from vision_data import (  # noqa: E402
     set_seed,
 )
 
-from csp_eval import (  # noqa: E402
+from csp_eval import (
     clip_contrastive_loss,
     eval_clip_style_classification,
     make_fixed_bank_forward,
 )
-from csp_vocab_train import (  # noqa: E402
+from csp_vocab_train import (
     CspCompositionVocab,
     _make_csp_eval_forward,
     build_csp_vocab_meta,
@@ -92,12 +87,12 @@ def _hf_image_to_pil_rgb(img: Any) -> Any:
     )
 
 
-# Hugging Face Hub: trainable blocks only (no frozen I-JEPA backbone keys)
+# Hugging Face Hub
 HUB_CONFIG_FILENAME = "tc_ijepa_config.json"
 HUB_WEIGHTS_FILENAME = "trainable_model.safetensors"
 
-# W&B: change this to your preferred default, or set WANDB_PROJECT in .env
-DEFAULT_WANDB_PROJECT = "csci1430-tc-ijepa"
+# W&B
+DEFAULT_WANDB_PROJECT = "csci1430-final-project"
 
 
 def _default_wandb_project() -> str:
@@ -139,7 +134,7 @@ def _default_eval_wandb_run_name(args: argparse.Namespace, *, fusion_type: str) 
     )
 
 
-# Default dataloader: tuned for a single large GPU; lower --batch-size if OOM; --finetune-clip-text may need 8–12
+# Default dataloader
 DEFAULT_TRAIN_BATCH = 16
 DEFAULT_TRAIN_NUM_WORKERS = 6
 DEFAULT_LOG_INTERVAL = 32
@@ -804,16 +799,13 @@ def run_finetune(args: argparse.Namespace) -> None:
         wandb_max_images=int(args.wandb_max_images),
     )
 
-    use_wandb = not args.no_wandb
+    use_wandb = not args.no_wandb and project_env.wandb_configured()
     if use_wandb:
         # Enforce metric/image-only logging; do not store model weights in W&B.
         os.environ["WANDB_LOG_MODEL"] = "false"
         import wandb
 
-        # project_env already loaded .env; W&B also reads WANDB_API_KEY from the environment
-        w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
-        if w_key:
-            wandb.login(key=w_key, relogin=True)
+        wandb.login(key=project_env.get_wandb_api_key(), relogin=True)
         run_name = _resolve_wandb_run_name(
             args.wandb_run_name,
             _default_train_wandb_run_name(args),
@@ -1049,11 +1041,6 @@ def _default_csp_vocab_bundle_save_path(args: argparse.Namespace) -> str:
 def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
     """
     Train compositional attr/object soft prompts (CSP-style vocab); vision + CLIP text encoder frozen.
-
-    Adapter, fusion, and CSP prompts are trained from their initializations (no ``--base-checkpoint``).
-
-    Saves a bundle dict to ``--save``: ``csp_vocab``, ``adapter``, ``fusion``, ``meta``, ``args``
-    (same layout as ``csp_vocab_train.py`` post-training artifact).
     """
     if (args.base_checkpoint or "").strip():
         raise ValueError(
@@ -1254,14 +1241,12 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
         base_checkpoint=str(args.base_checkpoint or ""),
     )
 
-    use_wandb = not args.no_wandb
+    use_wandb = not args.no_wandb and project_env.wandb_configured()
     if use_wandb:
         os.environ["WANDB_LOG_MODEL"] = "false"
         import wandb
 
-        w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
-        if w_key:
-            wandb.login(key=w_key, relogin=True)
+        wandb.login(key=project_env.get_wandb_api_key(), relogin=True)
         run_name = _resolve_wandb_run_name(
             args.wandb_run_name,
             _default_csp_vocab_train_wandb_run_name(args),
@@ -1303,7 +1288,6 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
                 model.backbone.eval()
             model.fusion.train()
             csp_vocab.train()
-            # Same modules as model.text_cond.{text_encoder,adapter}; train() above flips them—re-apply.
             csp_vocab.text_encoder.eval()
             csp_vocab.adapter.train()
             pbar = tqdm(
@@ -1650,14 +1634,12 @@ def run_eval_only(args: argparse.Namespace) -> None:
         }
         p.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
         print(f"Wrote eval metrics JSON to {p}", flush=True)
-    if not args.no_wandb:
-        # Enforce metric/image-only logging; do not store model weights in W&B.
+    if not args.no_wandb and project_env.wandb_configured():
+        # Enforce metric/image-only logging
         os.environ["WANDB_LOG_MODEL"] = "false"
         import wandb
 
-        w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
-        if w_key:
-            wandb.login(key=w_key, relogin=True)
+        wandb.login(key=project_env.get_wandb_api_key(), relogin=True)
         run_name = _resolve_wandb_run_name(
             args.wandb_run_name,
             _default_eval_wandb_run_name(
@@ -1882,7 +1864,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--no-wandb",
         action="store_true",
-        help="Disable W&B (offline mode still uses login unless WANDB_MODE=disabled)",
+        help="Disable W&B. Logging also stays off if WANDB_API_KEY is missing/empty in repo .env.",
     )
     p.add_argument(
         "--wandb-project",

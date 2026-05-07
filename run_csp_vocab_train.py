@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Unified launcher for CSP vocabulary post-training across seeds.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -39,6 +34,12 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     p.add_argument(
         "--hyperparams-file",
         default=os.environ.get("HYPERPARAMS_FILE", "hyperparameters.json"),
+    )
+    p.add_argument(
+        "--epochs",
+        type=int,
+        default=None,
+        help="Training epochs (overrides hyperparameters.json when set).",
     )
     p.add_argument(
         "--fusion-type",
@@ -167,8 +168,12 @@ def main() -> None:
     hp_cfg = _load_hparams(repo_root / args.hyperparams_file)
     merged = _merged_hparams(hp_cfg, args.vision_backbone, args.dataset)
 
-    # Strict mode: all training hyperparameters come from hyperparameters.json.
+    # Training hyperparameters from JSON unless overridden (e.g. --epochs).
     epochs = _require_hparam(merged, "epochs", int)
+    if args.epochs is not None:
+        if int(args.epochs) < 1:
+            raise ValueError("--epochs must be >= 1")
+        epochs = int(args.epochs)
     batch_size = _require_hparam(merged, "batch_size", int)
     lr = _require_hparam(merged, "lr", float)
     weight_decay = _require_hparam(merged, "weight_decay", float)

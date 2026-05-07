@@ -1,14 +1,3 @@
-#!/usr/bin/env python3
-"""
-Build and publish Hugging Face dataset repos for CSP reference benchmarks
-(MIT-States, UT-Zappos, C-GQA), following the data flow described in
-https://github.com/BatsResearch/csp
-
-Requires ``datasets`` and ``Pillow``; Hub push uses ``huggingface-cli login`` (or ``--token``).
-Optional: ``pip install pyarrow`` for faster local saves.
-"""
-
-
 from __future__ import annotations
 
 import argparse
@@ -112,7 +101,7 @@ def prepare_raw_layout(data_dir: Path) -> None:
         if " " in p.name:
             p.rename(p.with_name(p.name.replace(" ", "_")))
 
-    # UT-Zappos (keep original _images layout; no expensive full copy to images/attr_obj)
+    # UT-Zappos
     ut_root = data_dir / "ut-zap50k"
     ut_root.mkdir(parents=True, exist_ok=True)
     ut_images = ut_root / "_images"
@@ -197,18 +186,19 @@ def build_hf_datasetdict(ds_paths: DatasetPaths) -> "Any":
     train_pair_set = set(train_pairs)
 
     md_file = root / f"metadata_{ds_paths.split_name}.t7"
-    metadata: list[dict[str, Any]] | None
-    if md_file.is_file():
-        try:
-            import torch
-        except ModuleNotFoundError as exc:
-            raise ModuleNotFoundError(
-                f"Found metadata file at {md_file}, but torch is not installed. "
-                "Install torch or remove metadata usage."
-            ) from exc
-        metadata = torch.load(str(md_file), map_location="cpu")
-    else:
-        metadata = None
+    if not md_file.is_file():
+        raise FileNotFoundError(
+            f"Missing metadata file {md_file} for {ds_paths.name}. "
+            f"Expected metadata next to dataset root (compositional split: {ds_paths.split_name!r})."
+        )
+    try:
+        import torch
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            f"Found metadata file at {md_file}, but torch is not installed. "
+            "Install torch or remove metadata usage."
+        ) from exc
+    metadata = torch.load(str(md_file), map_location="cpu")
 
     by_split: dict[str, dict[str, list[Any]]] = {
         "train": {
@@ -274,79 +264,34 @@ def build_hf_datasetdict(ds_paths: DatasetPaths) -> "Any":
         out["source_set"].append(settype)
         out["image_relpath"].append(rel)
 
-    if metadata is not None:
-        for inst in metadata:
-            attr = str(inst.get("attr", ""))
-            obj = str(inst.get("obj", ""))
-            settype = str(inst.get("set", "")).lower()
-            if attr == "NA" or settype == "na":
-                continue
-            pair = (attr, obj)
-            if pair not in valid_pair_set or settype not in valid_splits:
-                continue
-            rel = _instance_image_rel(inst, ds_paths.name)
-            if not rel:
-                continue
-            img_path: Path | None = None
-            for ir in image_roots:
-                cand = ir / rel
-                if cand.is_file():
-                    img_path = cand
-                    break
-            if img_path is None:
-                continue
-            _append_row(
-                settype=settype,
-                attr=attr,
-                obj=obj,
-                pair=pair,
-                img_path=img_path,
-                rel=rel,
-            )
-    else:
-        # Fallback path used by cgqa.zip releases that do not include metadata_*.t7.
-        slug_to_pair: dict[str, tuple[str, str]] = {}
-        for a, o in all_pairs:
-            aa = a.replace(" ", "-")
-            oo = o.replace(" ", "-")
-            slug_to_pair[f"{aa}-{oo}"] = (a, o)
-        train_set = set(train_pairs)
-        val_set = set(val_pairs)
-        test_set = set(test_pairs)
-        img_dir = root / "images"
-        if not img_dir.is_dir():
-            raise FileNotFoundError(
-                f"Missing metadata file ({md_file}) and image directory ({img_dir}) for fallback parse."
-            )
-        for p in img_dir.iterdir():
-            if not p.is_file():
-                continue
-            rel = p.name
-            stem = p.stem
-            parts = stem.split("-", 2)
-            if len(parts) < 3:
-                continue
-            slug = parts[2]
-            pair = slug_to_pair.get(slug)
-            if pair is None:
-                continue
-            if pair in train_set:
-                settype = "train"
-            elif pair in val_set:
-                settype = "val"
-            elif pair in test_set:
-                settype = "test"
-            else:
-                continue
-            attr, obj = pair
-            _append_row(
-                settype=settype,
-                attr=attr,
-                obj=obj,
-                pair=pair,
-                img_path=p,
-                rel=rel,
-            )
+    for inst in metadata:
+        attr = str(inst.get("attr", ""))
+        obj = str(inst.get("obj", ""))
+        settype = str(inst.get("set", "")).lower()
+        if attr == "NA" or settype == "na":
+            continue
+        pair = (attr, obj)
+        if pair not in valid_pair_set or settype not in valid_splits:
+            continue
+        rel = _instance_image_rel(inst, ds_paths.name)
+        if not rel:
+            continue
+        img_path: Path | None = None
+        for ir in image_roots:
+            cand = ir / rel
+            if cand.is_file():
+                img_path = cand
+                break
+        if img_path is None:
+            continue
+        _append_row(
+            settype=settype,
+            attr=attr,
+            obj=obj,
+            pair=pair,
+            img_path=img_path,
+            rel=rel,
+        )
 
     features = Features(
         {

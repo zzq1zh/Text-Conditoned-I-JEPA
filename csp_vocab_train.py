@@ -1,7 +1,3 @@
-"""
-Standalone post-training for CSP-style compositional vocabulary.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -25,7 +21,7 @@ import project_env
 
 project_env.load_project_env()
 
-from main import (  # noqa: E402
+from main import (
     DEFAULT_CLIP_TEXT_ID,
     DEFAULT_PROMPT_TEMPLATE,
     TextConditionedVisionModel,
@@ -34,17 +30,17 @@ from main import (  # noqa: E402
     load_vision_processor,
     resolve_vision_model_id,
 )
-from vision_data import (  # noqa: E402
+from vision_data import (
     csp_vocab_allowed_class_indices,
     list_vision_dataset_keys,
     load_vision_train_val_test_specs,
     set_seed,
 )
 
-from csp_eval import clip_contrastive_loss, eval_clip_style_classification  # noqa: E402
+from csp_eval import clip_contrastive_loss, eval_clip_style_classification 
 
-# W&B: same default project as text_cond_train; override with WANDB_PROJECT in .env
-DEFAULT_WANDB_PROJECT = "csci1430-tc-ijepa"
+# W&B
+DEFAULT_WANDB_PROJECT = "csci1430-final-project"
 
 
 def _default_wandb_project() -> str:
@@ -394,12 +390,6 @@ def _clip_text_embeds_from_inputs_embeds(
 ) -> torch.Tensor:
     """
     Run CLIP text tower on pre-built ``inputs_embeds`` (BOS + soft prompts + EOS).
-
-    Recent ``transformers`` builds reject ``CLIPTextModelWithProjection(..., inputs_embeds=)``
-    because the inner ``CLIPTextModel`` raises when ``input_ids`` is omitted. This path
-    mirrors ``CLIPTextModel.forward`` but starts from ``CLIPTextEmbeddings(inputs_embeds=...)``.
-    The composed sequence ends with the EOS patch, so we pool the **last** token (same as
-    one-token EOS at the end of a short prompt).
     """
     tm = clip_text_with_proj.text_model
     hidden = tm.embeddings(inputs_embeds=inputs_embeds)
@@ -881,13 +871,11 @@ def run_csp_eval_only(args: argparse.Namespace) -> None:
         p.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
         print(f"Wrote eval metrics JSON to {p}", flush=True)
 
-    if not args.no_wandb:
+    if not args.no_wandb and project_env.wandb_configured():
         os.environ["WANDB_LOG_MODEL"] = "false"
         import wandb
 
-        w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
-        if w_key:
-            wandb.login(key=w_key, relogin=True)
+        wandb.login(key=project_env.get_wandb_api_key(), relogin=True)
         run_name = _resolve_wandb_run_name(
             (args.wandb_run_name or "").strip(),
             f"csp-vocab-eval-{args.dataset}-{args.eval_split}-seed{args.seed}",
@@ -1062,15 +1050,13 @@ def run_post_training(args: argparse.Namespace) -> None:
     global_step = 0
     t0 = time.time()
 
-    use_wandb = not bool(args.no_wandb)
+    use_wandb = not bool(args.no_wandb) and project_env.wandb_configured()
     w: Any = None
     if use_wandb:
         os.environ["WANDB_LOG_MODEL"] = "false"
         import wandb
 
-        w_key = (os.environ.get("WANDB_API_KEY") or "").strip()
-        if w_key:
-            wandb.login(key=w_key, relogin=True)
+        wandb.login(key=project_env.get_wandb_api_key(), relogin=True)
         run_name = _resolve_wandb_run_name(
             (args.wandb_run_name or "").strip(),
             _default_csp_vocab_wandb_run_name(args),
@@ -1118,9 +1104,6 @@ def run_post_training(args: argparse.Namespace) -> None:
     try:
         for epoch in range(int(args.epochs)):
             csp_vocab.train()
-            # ``text_encoder`` / ``adapter`` are registered submodules of ``csp_vocab``; a bare
-            # ``.train()`` would flip them out of eval (Dropout etc.) even though only soft prompts
-            # get gradients. They stay frozen; keep them in eval like ``model``.
             csp_vocab.text_encoder.eval()
             csp_vocab.adapter.eval()
             pbar = tqdm(
@@ -1366,7 +1349,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--no-wandb",
         action="store_true",
-        help="Disable Weights & Biases logging.",
+        help="Disable W&B. Logging also stays off if WANDB_API_KEY is missing/empty in repo .env.",
     )
     p.add_argument(
         "--wandb-project",

@@ -1,7 +1,3 @@
-"""
-Vision dataset loading for CSP-reference compositional benchmarks.
-"""
-
 from __future__ import annotations
 
 import random
@@ -13,7 +9,7 @@ import torch
 from datasets import Dataset, DatasetDict, ClassLabel, load_dataset
 
 
-# CSP-reference datasets (see ``build_csp_hf_datasets.py``).
+# CSP-reference datasets
 DATASET_CONFIG: dict[str, dict[str, Any]] = {
     "cspref_mit_states": {
         "path": "zzq1zh/csp-ref-mit-states",
@@ -197,10 +193,6 @@ class VisionBatchSpec:
 class VisionTrainTestVal:
     """
     Published Hub ``train`` / ``val`` / ``test`` for CSP-reference datasets.
-
-    For closed-world scoring, use :func:`csp_vocab_allowed_class_indices` with
-    ``role="val"`` or ``"test"`` so val eval uses train∪val candidates and test
-    eval uses train∪test.
     """
 
     train: VisionBatchSpec
@@ -235,10 +227,6 @@ def load_vision_train_val_test_specs(
 ) -> VisionTrainTestVal:
     """
     Build **train / val / test** from published CSP-reference Hub splits.
-
-    ``train_hub_split``, ``test_hub_split``, ``val_fraction``, and ``split_seed`` are
-    kept for call-site compatibility but **ignored** (splits are always Hub ``train``,
-    ``val``, and ``test``).
     """
     if dataset_key not in DATASET_CONFIG:
         known = ", ".join(list_vision_dataset_keys())
@@ -273,15 +261,6 @@ def load_vision_train_val_test_specs(
 def csp_vocab_allowed_class_indices(tvt: VisionTrainTestVal, role: str) -> list[int]:
     """
     Global class indices allowed for closed-world classification / composed-pair banks:
-
-    - ``role == "train"``: labels that appear in **train** rows only.
-    - ``role == "val"``: labels that appear in **train** or **val** rows.
-    - ``role == "test"``: labels that appear in **train** or **test** rows.
-
-    Uses ``tvt.train.label_key`` on each split (shared ``ClassLabel`` order across splits).
-
-    Used by ``csp_vocab_train``, ``text_cond_train`` (--finetune-csp-vocab, eval, and
-    main training val metrics) to restrict softmax candidates from actual split label sets.
     """
     if role not in ("train", "val", "test"):
         raise ValueError(f"role must be 'train', 'val', or 'test', got {role!r}")
@@ -308,8 +287,6 @@ def load_vision_batch_spec(
 ) -> VisionBatchSpec:
     """
     One-call loader: CSP-reference split + image column name.
-
-    ``num_labels`` for classification heads is ``len(class_names)``.
     """
     ds, class_names, label_key = load_vision_dataset(dataset_key, split=split)
     ds = limit_dataset_size(ds, max_samples)
@@ -325,7 +302,6 @@ def load_vision_batch_spec(
 def build_text_prompts(class_names: Iterable[str], template: str) -> list[str]:
     """
     One prompt string per class (zero-shot CLIP, or class vocabulary for templates).
-    Use ``{c}`` in ``template`` for the class name.
     """
     return [template.format(c=c) for c in class_names]
 
@@ -337,7 +313,6 @@ def prompts_for_label_indices(
 ) -> list[str]:
     """
     For supervised training: one prompt per example from its class index, e.g.
-    ``"a photo of a {c}."`` with ``c = class_names[y]``.
     """
     if isinstance(label_ids, torch.Tensor):
         label_ids = label_ids.detach().cpu().tolist()

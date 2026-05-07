@@ -39,17 +39,28 @@ uv run python run_text_cond_train.py --vision-backbone dinov3 --dataset cspref_m
 
 # CSP vocab post-train (needs a base .pt from above or from JSON base_checkpoint)
 uv run python run_csp_vocab_train.py --vision-backbone dinov3 --dataset cspref_mit_states --seed 42 \
-  --base-checkpoint checkpoints/<your_clip_stage>.pt
+  --base-checkpoint checkpoints/<your_checkpoint>.pt
 ```
 
 ### Eval
 
+**All checkpoints in a folder**:
+
 ```bash
+<<<<<<< HEAD
 # Re-run val+test on every checkpoint under checkpoints/
+=======
+>>>>>>> fb8accd (Refactor codebase)
 uv run python run_evals.py checkpoints/
 ```
 
-If backbone/dataset/seed cannot be inferred from the path, add e.g. `--vision-backbone dinov3 --dataset cspref_mit_states --seed 42`.
+**One checkpoint**:
+
+```bash
+uv run python run_evals.py checkpoints/<your_checkpoint>.pt
+```
+
+If backbone, dataset, or seed cannot be inferred from the path or bundle, add e.g. `--vision-backbone dinov3 --dataset cspref_mit_states --seed 42`.
 
 ## Main scripts
 
@@ -107,7 +118,7 @@ Dedicated CSP vocab training with `csp_vocab_train.py` (defaults include `--csp-
 
 ```bash
 uv run python csp_vocab_train.py \
-  --base-checkpoint ckpt_cross_attn.pt \
+  --base-checkpoint checkpoints/<your_checkpoint>.pt \
   --dataset cspref_mit_states \
   --epochs 20 \
   --batch-size 128 \
@@ -117,18 +128,17 @@ uv run python csp_vocab_train.py \
 ## Eval only
 
 ```bash
-uv run python text_cond_train.py --eval-only --dataset cspref_mit_states --checkpoint ckpt_cross_attn.pt --eval-split val
-uv run python text_cond_train.py --eval-only --dataset cspref_mit_states --checkpoint ckpt_cross_attn.pt --eval-split test
-uv run python text_cond_train.py --eval-only --from-hub user/model --dataset cspref_mit_states --eval-split test
+uv run python text_cond_train.py --eval-only --dataset cspref_mit_states --checkpoint checkpoints/<your_checkpoint>.pt --eval-split val
+uv run python text_cond_train.py --eval-only --dataset cspref_mit_states --checkpoint checkpoints/<your_checkpoint>.pt --eval-split test
 ```
 
 ## Attention visualization (`visualize_dinov3_attention.py`)
 
-Utility to plot **encoder self-attention** maps (mean over heads: **CLS token → image patches**) for a Hugging Face **ViT-style** backbone—default preset **DINOv3** (`--vision-backbone dinov3`, or `--model-id`).
+Utility to plot **encoder self-attention** maps (mean over heads: **CLS token → image patches**) for the **vision backbone** inside your saved models. Which Hub checkpoint is used (**DINOv3**, I-JEPA, V-JEPA, …) comes from the bundle’s training `args` (`vision_backbone` / `ijepa`), not from separate CLI flags on this script.
 
 **CLI modes**
 
-1. **Single image** — pass `--image`, optional `--checkpoint` (loads `backbone` / `backbone.*` from a bundle or full model dict if present; else Hub weights). Choose `--layers` (0-based block indices) and `--out` for the figure.
+1. **Single image** — pass `--image` and a **required** `--checkpoint` that is a **CSP vocab bundle** `.pt` (same schema as `--csp-checkpoint-tuned`: `csp_vocab`, `meta`, `backbone`, `adapter`, `fusion`, etc.). The script builds `TextConditionedVisionModel` from the bundle, applies the same eager-backbone reload as `--csp-compare`, then runs attention on `model.backbone`. Set `--layers` (0-based block indices) and `--out`.
 2. **`--csp-compare`** — load two **CSP vocab** `.pt` bundles (`--csp-checkpoint-tuned` with finetuned `backbone`, `--csp-checkpoint-base` with heads only / backbone ignored), scan **`--csp-dataset` official test split** for **contrast samples** (tuned top-1 correct, pretrained-only wrong), then draw side-by-side attention grids. Optional export of PNGs + `manifest.json` under `--csp-out-dir` (see `--csp-save-samples-dir`, `--csp-no-save-samples`).
 
 Examples:
@@ -138,8 +148,8 @@ uv run python visualize_dinov3_attention.py --image path/to.jpg --checkpoint che
   --out attn.png --layers 6 8 9 10 11
 
 uv run python visualize_dinov3_attention.py --csp-compare \
-  --csp-checkpoint-tuned path/to/with_backbone.pt \
-  --csp-checkpoint-base path/to/heads_only.pt \
+  --csp-checkpoint-tuned checkpoints/<your_tuned_checkpoint>.pt \
+  --csp-checkpoint-base checkpoints/<your_base_checkpoint>.pt \
   --csp-dataset cspref_mit_states --csp-n-samples 5 --csp-out-dir out_attn
 ```
 

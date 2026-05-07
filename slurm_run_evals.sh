@@ -30,7 +30,6 @@ source ~/.local/bin/env
 #   sbatch slurm_run_evals.sh my_ckpts/ --recurse
 #   sbatch slurm_run_evals.sh checkpoints/ --glob 'csp_vocab_*.pt'
 #   sbatch slurm_run_evals.sh ckpt1.pt ckpt2.pt --vision-backbone dinov3 --dataset cspref_cgqa
-#   sbatch slurm_run_evals.sh checkpoints/ --recurse --no-summarize
 #   HYPERPARAMS_FILE=/path/to/hyperparameters.json sbatch slurm_run_evals.sh
 #   WANDB_PROJECT=myproj sbatch slurm_run_evals.sh checkpoints/ --recurse --wandb
 #

@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Visualize self-attention maps from a Hugging Face DINOv3 ViT backbone.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -19,26 +14,28 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from PIL import Image
+from timm.layers import apply_rot_embed_cat, maybe_add_mask, resolve_self_attn_mask
 from transformers import AutoModel, AutoTokenizer
 
 import project_env
 
 project_env.load_project_env()
 
-from csp_vocab_train import (  # noqa: E402
+from csp_vocab_train import (
     CspCompositionVocab,
     CspVocabMeta,
 )
 
-from main import (  # noqa: E402
+from main import (
     DEFAULT_CLIP_TEXT_ID,
     TextConditionedVisionModel,
     _extract_model_pixel_values,
     load_vision_processor,
     resolve_vision_model_id,
 )
-from vision_data import (  # noqa: E402
+from vision_data import (
     csp_vocab_allowed_class_indices,
     list_vision_dataset_keys,
     load_vision_train_val_test_specs,
@@ -46,54 +43,15 @@ from vision_data import (  # noqa: E402
 )
 
 
-def _extract_backbone_state(ckpt_obj: Any) -> dict[str, torch.Tensor] | None:
-    """Return backbone state dict from a raw checkpoint, or None."""
-    if not isinstance(ckpt_obj, dict):
-        return None
-    if isinstance(ckpt_obj.get("backbone"), dict):
-        return ckpt_obj["backbone"]  # type: ignore[return-value]
-    prefix = "backbone."
-    out: dict[str, torch.Tensor] = {}
-    for k, v in ckpt_obj.items():
-        if not isinstance(k, str):
-            continue
-        if k.startswith(prefix):
-            out[k[len(prefix) :]] = v
-    return out or None
-
-
-def _load_backbone(model_id: str, device: torch.device, *, tuned_sd: dict[str, torch.Tensor] | None) -> nn.Module:
-    dtype = torch.float32
-    model = AutoModel.from_pretrained(
-        model_id,
-        torch_dtype=dtype,
-        attn_implementation="eager",
-    )
-    model.to(device)
-    model.eval()
-    if tuned_sd:
-        res = model.load_state_dict(tuned_sd, strict=False)
-        print(
-            f"Loaded tuned backbone weights: missing={len(res.missing_keys)} "
-            f"unexpected={len(res.unexpected_keys)}",
-            flush=True,
-        )
-        if res.missing_keys[:8]:
-            print(f"  missing (first): {res.missing_keys[:8]}", flush=True)
-        if res.unexpected_keys[:8]:
-            print(f"  unexpected (first): {res.unexpected_keys[:8]}", flush=True)
-    else:
-        print("Using pretrained backbone from Hub (no tuned weights in checkpoint).", flush=True)
-    return model
-
-
 def _encoder_layers(model: nn.Module) -> nn.ModuleList:
     """
     Return the ``ModuleList`` of transformer blocks.
-
-    - Dinov2-style ViTs: ``model.encoder.layer``
-    - DINOv3 ViT (``DINOv3ViTModel``): ``model.model.layer`` (encoder submodule is named ``model``).
     """
+    timm_inner = getattr(model, "timm_model", None)
+    if timm_inner is not None:
+        blocks = getattr(timm_inner, "blocks", None)
+        if isinstance(blocks, nn.ModuleList):
+            return blocks
     enc = getattr(model, "encoder", None)
     if enc is None:
         enc = getattr(model, "model", None)
@@ -120,8 +78,93 @@ def _patch_grid(config: Any) -> tuple[int, int, int]:
     else:
         img = int(img)
     nh, nw = img // ps, img // ps
-    n_prefix = 1 + int(getattr(config, "num_register_tokens", 0))
+    nr = getattr(config, "num_register_tokens", 0)
+    if nr is None:
+        nr = 0
+    n_prefix = 1 + int(nr)
     return nh, nw, n_prefix
+
+
+def _patch_grid_for_backbone(backbone: nn.Module) -> tuple[int, int, int]:
+    """Spatial layout for HF ViTs or HuggingFace ``TimmWrapperModel`` (DINOv3 via timm)."""
+    timm_inner = getattr(backbone, "timm_model", None)
+    if timm_inner is not None:
+        pe = getattr(timm_inner, "patch_embed", None)
+        if pe is not None:
+            ps_raw = pe.patch_size
+            if isinstance(ps_raw, (list, tuple)):
+                ps = int(ps_raw[0])
+            else:
+                ps = int(ps_raw)
+            img_raw = pe.img_size
+            if isinstance(img_raw, (list, tuple)):
+                img = int(img_raw[0])
+            else:
+                img = int(img_raw)
+            nh, nw = img // ps, img // ps
+            blocks = getattr(timm_inner, "blocks", None)
+            n_prefix = 1
+            if blocks is not None and len(blocks) > 0:
+                attn0 = getattr(blocks[0], "attn", None)
+                if attn0 is not None and hasattr(attn0, "num_prefix_tokens"):
+                    n_prefix = int(attn0.num_prefix_tokens)
+            return nh, nw, n_prefix
+    return _patch_grid(backbone.config)
+
+
+def _eva_attention_softmax_probs(
+    attn_mod: nn.Module,
+    x: torch.Tensor,
+    rope: torch.Tensor | None,
+    attn_mask: torch.Tensor | None,
+    is_causal: bool,
+) -> torch.Tensor:
+    """
+    Recompute timm :class:`EvaAttention` softmax weights ``(B, H, N, N)`` (matches forward, no dropout).
+    Used because fused SDPA does not expose attention maps and timm forbids ``output_attentions``.
+    """
+    if type(attn_mod).__name__ != "EvaAttention":
+        raise TypeError(f"Expected EvaAttention, got {type(attn_mod).__name__}")
+
+    B, N, C = x.shape
+
+    if attn_mod.qkv is not None:
+        if attn_mod.q_bias is None:
+            qkv = attn_mod.qkv(x)
+        else:
+            qkv_bias = torch.cat((attn_mod.q_bias, attn_mod.k_bias, attn_mod.v_bias))
+            if attn_mod.qkv_bias_separate:
+                qkv = attn_mod.qkv(x)
+                qkv = qkv + qkv_bias
+            else:
+                qkv = F.linear(x, weight=attn_mod.qkv.weight, bias=qkv_bias)
+        qkv = qkv.reshape(B, N, 3, attn_mod.num_heads, -1).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv.unbind(0)
+    else:
+        q = attn_mod.q_proj(x).reshape(B, N, attn_mod.num_heads, -1).transpose(1, 2)
+        k = attn_mod.k_proj(x).reshape(B, N, attn_mod.num_heads, -1).transpose(1, 2)
+        v = attn_mod.v_proj(x).reshape(B, N, attn_mod.num_heads, -1).transpose(1, 2)
+
+    q, k = attn_mod.q_norm(q), attn_mod.k_norm(k)
+
+    if rope is not None:
+        npt = attn_mod.num_prefix_tokens
+        half = getattr(attn_mod, "rotate_half", False)
+        q = torch.cat(
+            [q[:, :, :npt, :], apply_rot_embed_cat(q[:, :, npt:, :], rope, half=half)],
+            dim=2,
+        ).type_as(v)
+        k = torch.cat(
+            [k[:, :, :npt, :], apply_rot_embed_cat(k[:, :, npt:, :], rope, half=half)],
+            dim=2,
+        ).type_as(v)
+
+    q = q * attn_mod.scale
+    attn = q @ k.transpose(-2, -1)
+    attn_bias = resolve_self_attn_mask(N, attn, attn_mask, is_causal=is_causal)
+    attn = maybe_add_mask(attn, attn_bias)
+    attn = attn.softmax(dim=-1)
+    return attn
 
 
 def _cls_to_patch_map(
@@ -157,6 +200,8 @@ def _forward_attentions(model: nn.Module, pixel_values: torch.Tensor) -> tuple[t
             out = model(pixel_values=pixel_values, output_attentions=True)
         except TypeError:
             return None, "forward does not accept output_attentions"
+        except ValueError as exc:
+            return None, str(exc)
         att = getattr(out, "attentions", None)
         if att is None or len(att) == 0:
             return None, "output has no attentions"
@@ -178,9 +223,8 @@ def _forward_with_attention_hooks(
     storage: list[torch.Tensor | None] = [None] * n_layers
     hooks: list[Any] = []
 
-    def make_hook(i: int):
+    def make_hf_hook(i: int):
         def hook(_mod: nn.Module, _args: Any, output: Any) -> None:
-            # HF often returns (hidden_states, attentions?, ...)
             if isinstance(output, tuple) and len(output) >= 2:
                 att = output[1]
                 if att is not None and torch.is_tensor(att):
@@ -191,12 +235,36 @@ def _forward_with_attention_hooks(
         return hook
 
     for i, layer in enumerate(layers):
+        eva = getattr(layer, "attn", None)
+        if eva is not None and type(eva).__name__ == "EvaAttention":
+            layer_idx = int(i)
+            cap: dict[str, Any] = {}
+
+            def pre_hook(_mod: nn.Module, args: tuple[Any, ...], kwargs: dict[str, Any] | None) -> None:
+                cap["x"] = args[0]
+                kw = kwargs or {}
+                cap["rope"] = kw.get("rope")
+                cap["attn_mask"] = kw.get("attn_mask")
+                cap["is_causal"] = bool(kw.get("is_causal", False))
+
+            def post_hook(attn_module: nn.Module, _inp: Any, _out: Any, *, _idx: int = layer_idx) -> None:
+                storage[_idx] = _eva_attention_softmax_probs(
+                    attn_module,
+                    cap["x"],
+                    cap.get("rope"),
+                    cap.get("attn_mask"),
+                    cap.get("is_causal", False),
+                ).detach()
+
+            hooks.append(eva.register_forward_pre_hook(pre_hook, with_kwargs=True))  # type: ignore[call-arg]
+            hooks.append(eva.register_forward_hook(post_hook))
+            continue
+
         attn_mod = getattr(layer, "attention", None)
         if attn_mod is None:
             continue
-        # self_attn or attention.core — try common names
         sub = getattr(attn_mod, "attention", attn_mod)
-        hooks.append(sub.register_forward_hook(make_hook(i)))
+        hooks.append(sub.register_forward_hook(make_hf_hook(i)))
 
     with torch.inference_mode():
         model(pixel_values=pixel_values)
@@ -301,8 +369,7 @@ def _load_csp_textconditioned(
             model.backbone.load_state_dict(bb, strict=True)
         else:
             raise ValueError(
-                "CSP compare: tuned checkpoint must contain a non-empty 'backbone' dict "
-                "(vision-finetuned bundle)."
+                "CSP bundle must contain a non-empty 'backbone' dict when loading finetuned vision weights."
             )
     elif isinstance(bb, dict) and bb:
         print(
@@ -358,6 +425,19 @@ def _backbone_to_eager_attn(model: TextConditionedVisionModel, ijepa_id: str, de
     bb.to(device)
     bb.eval()
     model.backbone = bb
+
+
+def _load_csp_tc_with_eager_backbone(
+    bundle: dict[str, Any],
+    csp_meta: CspVocabMeta,
+    device: torch.device,
+    *,
+    load_backbone_weights: bool,
+) -> TextConditionedVisionModel:
+    """Build :class:`TextConditionedVisionModel` from a CSP bundle, then reload ``model.backbone`` eager (compare path)."""
+    m = _load_csp_textconditioned(bundle, csp_meta, device, load_backbone_weights=load_backbone_weights)
+    _backbone_to_eager_attn(m, _ijepa_id_from_bundle(bundle), device)
+    return m
 
 
 @torch.inference_mode()
@@ -613,7 +693,7 @@ def _figure_csp_backbone_compare(
     ckpt_base: Path,
 ) -> None:
     ijepa_id = _ijepa_id_from_bundle(bundle_tuned)
-    nh, nw, n_prefix = _patch_grid(model_t.backbone.config)
+    nh, nw, n_prefix = _patch_grid_for_backbone(model_t.backbone)
     n_layers = len(layers)
     ncols = 1 + 2 * n_layers
     nrows = len(samples)
@@ -692,8 +772,8 @@ def run_csp_backbone_compare(args: argparse.Namespace) -> None:
     if clip_t != clip_b:
         raise ValueError(f"CLIP id mismatch: tuned={clip_t!r} base={clip_b!r}")
 
-    model_t = _load_csp_textconditioned(bundle_t, csp_meta, device, load_backbone_weights=True)
-    model_b = _load_csp_textconditioned(bundle_b, csp_meta, device, load_backbone_weights=False)
+    model_t = _load_csp_tc_with_eager_backbone(bundle_t, csp_meta, device, load_backbone_weights=True)
+    model_b = _load_csp_tc_with_eager_backbone(bundle_b, csp_meta, device, load_backbone_weights=False)
 
     tok = AutoTokenizer.from_pretrained(clip_t)
     csp_mod_t = _build_csp_vocab(bundle_t, model_t, csp_meta, tok, device)
@@ -704,9 +784,6 @@ def run_csp_backbone_compare(args: argparse.Namespace) -> None:
     csp_mod_b.eval()
 
     ijepa_id = _ijepa_id_from_bundle(bundle_t)
-    _backbone_to_eager_attn(model_t, ijepa_id, device)
-    _backbone_to_eager_attn(model_b, ijepa_id, device)
-
     proc = load_vision_processor(ijepa_id)
     n = int(args.csp_n_samples)
     max_scan = int(args.csp_max_scan)
@@ -765,7 +842,8 @@ def run_csp_backbone_compare(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    _desc = (__doc__ or "").strip() or "ViT/DINOv3 encoder self-attention maps (single image or CSP compare)."
+    p = argparse.ArgumentParser(description=_desc, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument(
         "--csp-compare",
         action="store_true",
@@ -828,9 +906,12 @@ def main() -> None:
         help="Use CUDA autocast fp16 for CSP logits (attention viz stays fp32).",
     )
     p.add_argument("--image", type=Path, default=None, help="Input RGB image path (single-image mode)")
-    p.add_argument("--checkpoint", type=Path, default=None, help="Optional .pt (full model or CSP bundle)")
-    p.add_argument("--model-id", default="", help="Override HuggingFace vision model id")
-    p.add_argument("--vision-backbone", default="dinov3", help="Preset when --model-id empty (default: dinov3)")
+    p.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=None,
+        help="Single-image mode: CSP bundle .pt (same keys as --csp-checkpoint-tuned: csp_vocab, meta, backbone, …).",
+    )
     p.add_argument("--out", type=Path, default=Path("dinov3_attention_maps.png"))
     p.add_argument(
         "--layers",
@@ -852,27 +933,19 @@ def main() -> None:
 
     if args.image is None:
         raise SystemExit("Provide --image for single-image mode, or use --csp-compare with CSP checkpoints.")
+    if args.checkpoint is None or not args.checkpoint.is_file():
+        raise SystemExit("Single-image mode requires --checkpoint pointing to an existing CSP bundle .pt file.")
 
     device = torch.device(args.device)
-    model_id = resolve_vision_model_id(args.vision_backbone, args.model_id)
-
-    tuned: dict[str, torch.Tensor] | None = None
-    if args.checkpoint and args.checkpoint.is_file():
-        raw = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
-        tuned = _extract_backbone_state(raw)
-        if tuned is None:
-            print(
-                f"Checkpoint {args.checkpoint} has no backbone weights; using pretrained backbone only.",
-                flush=True,
-            )
-    elif args.checkpoint:
-        print(f"No file at {args.checkpoint}; using pretrained backbone only.", flush=True)
-
-    model = _load_backbone(model_id, device, tuned_sd=tuned)
-    proc = load_vision_processor(model_id)
-    config = model.config
-    nh, nw, n_prefix = _patch_grid(config)
-    n_enc = len(_encoder_layers(model))
+    raw = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
+    bundle = _require_csp_bundle(raw, str(args.checkpoint))
+    csp_meta = _meta_from_bundle(bundle["meta"])
+    tc_model = _load_csp_tc_with_eager_backbone(bundle, csp_meta, device, load_backbone_weights=True)
+    ijepa_id = _ijepa_id_from_bundle(bundle)
+    backbone = tc_model.backbone
+    proc = load_vision_processor(ijepa_id)
+    nh, nw, n_prefix = _patch_grid_for_backbone(backbone)
+    n_enc = len(_encoder_layers(backbone))
 
     for idx in args.layers:
         if idx < 0 or idx >= n_enc:
@@ -882,10 +955,10 @@ def main() -> None:
     batch = proc(images=pil, return_tensors="pt")
     pv = batch["pixel_values"].to(device, dtype=torch.float32)
 
-    att_tuple, msg = _forward_attentions(model, pv)
+    att_tuple, msg = _forward_attentions(backbone, pv)
     if att_tuple is None:
         print(f"output_attentions path failed ({msg}); trying hooks.", flush=True)
-        att_list = _forward_with_attention_hooks(model, pv, n_enc)
+        att_list = _forward_with_attention_hooks(backbone, pv, n_enc)
     else:
         att_list = list(att_tuple)
 
@@ -913,7 +986,7 @@ def main() -> None:
         ax.axis("off")
     for j in range(len(maps) + 1, len(flat)):
         flat[j].axis("off")
-    fig.suptitle(f"{model_id}\n{args.checkpoint}" if args.checkpoint else model_id, fontsize=10)
+    fig.suptitle(f"{ijepa_id}\n{args.checkpoint}", fontsize=10)
     fig.tight_layout()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=160)

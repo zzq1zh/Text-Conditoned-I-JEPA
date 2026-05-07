@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Run val + test ``--eval-only`` for every checkpoint under a path list or directory.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -16,14 +11,25 @@ from typing import Any
 
 import torch
 
+import project_env
+
 
 _BACKBONE = r"(?:ijepa|vjepa|dinov3)"
-# Saved by run_text_cond_train: {model_tag}_{dataset_tag}_clipstyle_s{seed}_{ts}
-_RE_CLIPSTYLE_STRICT = re.compile(
-    rf"^({_BACKBONE})_(.+)_clipstyle_s(\d+)_([0-9]{{8}}-[0-9]{{6}})$"
+# Launcher / text_cond_train default save: {model}_{dataset}_{fusion}_s{seed}_{ts}
+# fusion slug: fuse "_" -> "-" (clip_similarity -> clip-similarity); legacy run_text used "clipstyle".
+_FUSION_SLUG = r"(?:clip-similarity|cross-attention|clipstyle)"
+_RE_TEXT_COND_STRICT = re.compile(
+    rf"^({_BACKBONE})_(.+)_({_FUSION_SLUG})_s(\d+)_([0-9]{{8}}-[0-9]{{6}})$"
 )
-_RE_CLIPSTYLE_LOOSE = re.compile(rf"^({_BACKBONE})_(.+)_clipstyle_s(\d+)_(.+)$")
-# Saved by run_csp_vocab_train: csp_vocab_{model_tag}_{dataset_tag}_s{seed}_{ts}
+_RE_TEXT_COND_LOOSE = re.compile(rf"^({_BACKBONE})_(.+)_({_FUSION_SLUG})_s(\d+)_(.+)$")
+# run_csp_vocab_train: csp_vocab_{model}_{dataset}_s{seed}_{ts}
+# text_cond_train --finetune-csp-vocab default: csp_vocab_{model}_{dataset}_{fusion}_s{seed}_{ts}
+_RE_CSPV_WITH_FUSION_STRICT = re.compile(
+    rf"^csp_vocab_({_BACKBONE})_(.+)_({_FUSION_SLUG})_s(\d+)_([0-9]{{8}}-[0-9]{{6}})$"
+)
+_RE_CSPV_WITH_FUSION_LOOSE = re.compile(
+    rf"^csp_vocab_({_BACKBONE})_(.+)_({_FUSION_SLUG})_s(\d+)_(.+)$"
+)
 _RE_CSPV_STRICT = re.compile(
     rf"^csp_vocab_({_BACKBONE})_(.+)_s(\d+)_([0-9]{{8}}-[0-9]{{6}})$"
 )
@@ -38,15 +44,30 @@ def _parse_run_checkpoint_stem(path: Path, kind: str) -> dict[str, str | int] | 
     """
     stem = path.stem
     if kind == "csp_vocab":
-        m = _RE_CSPV_STRICT.match(stem) or _RE_CSPV_LOOSE.match(stem)
+        m = (
+            _RE_CSPV_WITH_FUSION_STRICT.match(stem)
+            or _RE_CSPV_WITH_FUSION_LOOSE.match(stem)
+            or _RE_CSPV_STRICT.match(stem)
+            or _RE_CSPV_LOOSE.match(stem)
+        )
     else:
-        m = _RE_CLIPSTYLE_STRICT.match(stem) or _RE_CLIPSTYLE_LOOSE.match(stem)
+        m = _RE_TEXT_COND_STRICT.match(stem) or _RE_TEXT_COND_LOOSE.match(stem)
     if not m:
         return None
+    if kind == "csp_vocab":
+        # Plain csp_vocab_*_s*_* : groups backbone, dataset, seed, ts
+        # With fusion slug: backbone, dataset, fusion, seed, ts
+        n = len(m.groups())
+        seed_idx = 4 if n >= 5 else 3
+        return {
+            "vision_backbone": m.group(1),
+            "dataset": m.group(2),
+            "seed": int(m.group(seed_idx)),
+        }
     return {
         "vision_backbone": m.group(1),
         "dataset": m.group(2),
-        "seed": int(m.group(3)),
+        "seed": int(m.group(4)),
     }
 
 
@@ -101,36 +122,13 @@ def _collect_files(paths: list[Path], *, glob_pat: str | None, recurse: bool) ->
     return sorted(uniq)
 
 
-def _run_summarize(repo_root: Path, metrics_dir: Path) -> None:
-    """Run ``summarize_eval_metrics.py`` on one directory of ``*.json`` metrics."""
-    metrics_dir = metrics_dir.resolve()
-    json_files = list(metrics_dir.glob("*.json"))
-    if not json_files:
-        print(f"[summarize] skip (no *.json in {metrics_dir})", flush=True)
-        return
-    summarize_script = repo_root / "summarize_eval_metrics.py"
-    if not summarize_script.is_file():
-        raise FileNotFoundError(f"Missing {summarize_script}")
-    cmd = [
-        sys.executable,
-        str(summarize_script),
-        "--metrics-dir",
-        str(metrics_dir),
-        "--raw-csv",
-        str(metrics_dir / "eval_metrics_raw.csv"),
-        "--summary-csv",
-        str(metrics_dir / "eval_metrics_summary.csv"),
-        "--summary-json",
-        str(metrics_dir / "eval_metrics_summary.json"),
-        "--plot-dir",
-        str(metrics_dir / "eval_plots"),
-    ]
-    print(f"\n[summarize] {' '.join(cmd)}", flush=True)
-    subprocess.run(cmd, check=True, cwd=str(repo_root))
-
-
 def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description=__doc__.split("Examples::", 1)[0].strip())
+    p = argparse.ArgumentParser(
+        description=(
+            "Run val and test --eval-only for checkpoint .pt/.pth files or directories; "
+            "calls text_cond_train.py or csp_vocab_train.py."
+        ),
+    )
     p.add_argument(
         "paths",
         nargs="*",
@@ -170,7 +168,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument(
         "--wandb",
         action="store_true",
-        help="Enable W&B image logging during eval (default: pass --no-wandb to eval).",
+        help="Forward W&B image logging to eval (requires WANDB_API_KEY in repo .env).",
     )
     p.add_argument("--wandb-max-images", type=int, default=8)
     p.add_argument(
@@ -179,11 +177,6 @@ def _parse_args() -> argparse.Namespace:
         default=[],
         metavar="ARG",
         help="Extra argv token for each eval (repeatable), e.g. --forward --finetune-clip-text",
-    )
-    p.add_argument(
-        "--no-summarize",
-        action="store_true",
-        help="Do not run summarize_eval_metrics.py after eval (default: run it per results dir).",
     )
     return p.parse_args()
 
@@ -196,6 +189,7 @@ def main() -> None:
 
     repo_root = Path(__file__).resolve().parent
     os.chdir(repo_root)
+    project_env.load_project_env()
 
     files = _collect_files(
         [Path(p) for p in args.paths],
@@ -206,9 +200,13 @@ def main() -> None:
         print("No checkpoint files matched.", file=sys.stderr)
         sys.exit(1)
 
-    use_wandb = bool(args.wandb)
+    use_wandb = bool(args.wandb) and project_env.wandb_configured()
+    if bool(args.wandb) and not project_env.wandb_configured():
+        print(
+            "[run_evals] --wandb ignored: no WANDB_API_KEY in repo .env (eval runs without W&B).",
+            flush=True,
+        )
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-    metrics_dirs: set[Path] = set()
 
     for ck in files:
         kind = _detect_kind(ck)
@@ -244,7 +242,7 @@ def main() -> None:
         if seed is None:
             raise SystemExit(
                 f"{ck}: could not resolve seed; pass --seed or use a launcher filename "
-                f"(e.g. …_clipstyle_s42_* or csp_vocab_*_s42_*)."
+                f"(e.g. …_clip-similarity_s42_* or …_clipstyle_s42_* or csp_vocab_*_s42_*)."
             )
 
         dataset_tag = dataset.replace("-", "_")
@@ -254,7 +252,6 @@ def main() -> None:
         else:
             results_dir = repo_root / "results" / f"rerun_evals_{dataset_tag}_{kind_tag}"
         results_dir.mkdir(parents=True, exist_ok=True)
-        metrics_dirs.add(results_dir.resolve())
 
         base = [
             sys.executable,
@@ -309,10 +306,6 @@ def main() -> None:
 
         subprocess.run(val_cmd, check=True, cwd=str(repo_root))
         subprocess.run(test_cmd, check=True, cwd=str(repo_root))
-
-    if not args.dry_run and not args.no_summarize:
-        for d in sorted(metrics_dirs, key=str):
-            _run_summarize(repo_root, d)
 
 
 if __name__ == "__main__":

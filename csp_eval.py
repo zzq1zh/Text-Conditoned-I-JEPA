@@ -1,7 +1,3 @@
-"""
-CSP-oriented evaluation for vision–text models (text-cond training + CSP vocab post-train).
-"""
-
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
