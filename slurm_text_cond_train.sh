@@ -36,6 +36,9 @@ source ~/.local/bin/env
 #     → appends --finetune-vision-backbone (with FINETUNE_CSP_VOCAB=1, unfreezes vision during CSP vocab training too)
 #   FUSION_TYPE=cross_attention sbatch slurm_text_cond_train.sh dinov3 cspref_mit_states my-wandb
 #     → passes --fusion-type to run_text_cond_train (default: clip_similarity)
+#   TRAIN_LR=3e-4 TRAIN_BATCH_SIZE=16 sbatch slurm_text_cond_train.sh ijepa cspref_mit_states
+#     → forwarded as extra args to run_text_cond_train (overrides hyperparameters.json for text_cond_train)
+#     Aliases: LR / BATCH_SIZE env vars. Not applied to csp_posttrain (still uses JSON via slurm_csp_vocab_train.sh).
 TARGET="${1:-${TRAIN_TARGET:-dinov3}}"
 DATASET="${2:-${TRAIN_DATASET:-cspref_mit_states}}"
 W_PROJECT="${3:-${WANDB_PROJECT:-}}"
@@ -44,6 +47,9 @@ CSP_BACKBONE="${5:-ijepa}"
 FINETUNE_CSP_VOCAB="${FINETUNE_CSP_VOCAB:-0}"
 FINETUNE_VISION_BACKBONE="${FINETUNE_VISION_BACKBONE:-0}"
 FUSION_TYPE="${FUSION_TYPE:-clip_similarity}"
+# Learning rate / batch size overrides for dinov3|ijepa|vjepa only (empty = use hyperparameters.json).
+TRAIN_LR="${TRAIN_LR:-${LR:-}}"
+TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-${BATCH_SIZE:-}}"
 
 case "${TARGET}" in
   dinov3|dino)
@@ -92,11 +98,29 @@ if [[ "${_fvb}" == "1" || "${_fvb}" == "true" || "${_fvb}" == "yes" || "${_fvb}"
   esac
 fi
 
+case "${TARGET}" in
+  dinov3|dino|ijepa|i-jepa|vjepa|v-jepa)
+    if [[ -n "${TRAIN_BATCH_SIZE}" ]]; then
+      TRAIN_CMD+=(--batch-size "${TRAIN_BATCH_SIZE}")
+    fi
+    if [[ -n "${TRAIN_LR}" ]]; then
+      TRAIN_CMD+=(--lr "${TRAIN_LR}")
+    fi
+    ;;
+esac
+
 echo "Training target: ${TARGET}"
 echo "Dataset: ${DATASET}"
 echo "FINETUNE_CSP_VOCAB: ${FINETUNE_CSP_VOCAB} (1/true/y adds --finetune-csp-vocab for ijepa/dinov3/vjepa)"
 echo "FINETUNE_VISION_BACKBONE: ${FINETUNE_VISION_BACKBONE} (1/true/y adds --finetune-vision-backbone for ijepa/dinov3/vjepa)"
 echo "FUSION_TYPE: ${FUSION_TYPE} (--fusion-type for run_text_cond_train; not from hyperparameters.json)"
+if [[ "${TARGET}" == dinov3 || "${TARGET}" == dino || "${TARGET}" == ijepa || "${TARGET}" == i-jepa || "${TARGET}" == vjepa || "${TARGET}" == v-jepa ]]; then
+  if [[ -n "${TRAIN_BATCH_SIZE}" || -n "${TRAIN_LR}" ]]; then
+    echo "TRAIN_BATCH_SIZE: ${TRAIN_BATCH_SIZE:-<JSON>}  TRAIN_LR: ${TRAIN_LR:-<JSON>} (set env TRAIN_BATCH_SIZE / TRAIN_LR or BATCH_SIZE / LR; overrides hyperparameters.json via run_text_cond_train extra args)"
+  else
+    echo "TRAIN_BATCH_SIZE / TRAIN_LR: <unset; batch_size & lr from hyperparameters.json>"
+  fi
+fi
 if [[ "${TARGET}" == "csp_posttrain" || "${TARGET}" == "csp-posttrain" || "${TARGET}" == "csp" ]]; then
   echo "CSP vision backbone: ${CSP_BACKBONE}"
   if [[ -n "${BASE_CKPT}" ]]; then
