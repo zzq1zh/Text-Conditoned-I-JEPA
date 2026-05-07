@@ -247,7 +247,7 @@ class FusionHead(nn.Module):
             self.visual_proj = nn.Linear(vis_dim, hidden)
             self.text_proj = nn.Linear(cond_dim, hidden)
             self.cross_attn = nn.MultiheadAttention(
-                embed_dim=hidden, num_heads=n_heads, dropout=0.1, batch_first=True
+                embed_dim=hidden, num_heads=n_heads, dropout=0.0, batch_first=True
             )
             self.logit_scale = nn.Parameter(torch.tensor(math.log(1.0 / 0.07)))
         else:
@@ -384,20 +384,47 @@ class TextConditionedVisionModel(nn.Module):
         return self.fusion(image_feats, text_feats)
 
     def score_candidates(
-        self, image_feats: torch.Tensor, candidate_text_embeds: torch.Tensor, chunk_size: int = 256
+        self,
+        image_feats: torch.Tensor,
+        candidate_text_embeds: torch.Tensor,
+        chunk_size: int = 256,
+        *,
+        pair_chunk_size: int = 256,
     ) -> torch.Tensor:
         """
         Score all candidates for each image.
         image_feats: ``(B, D_v)`` or ``(B, N, D_v)`` (tokens for cross-attention),
         candidate_text_embeds: (C, Dt) -> scores: (B, C)
+
+        For ``cross_attention`` with token sequences ``(B, N, D)``, scoring all pairs
+        used to expand to ``(B*C, N, D)`` and run MHA once, which blows memory when
+        ``B*C`` is large.  We instead walk pair indices in blocks of ``pair_chunk_size``
+        and call ``score_pairs`` on thin slices (peak memory scales with ``pair_chunk_size``).
         """
         b = image_feats.size(0)
         c = candidate_text_embeds.size(0)
+        cross_tokens = image_feats.dim() == 3 and self.fusion.fusion_type == "cross_attention"
         out_chunks: list[torch.Tensor] = []
         for s in range(0, c, chunk_size):
             e = min(c, s + chunk_size)
             t = candidate_text_embeds[s:e]  # (Cc, Dt)
             cc = t.size(0)
+            if cross_tokens:
+                device = image_feats.device
+                total_pairs = b * cc
+                flat_parts: list[torch.Tensor] = []
+                pc = max(1, int(pair_chunk_size))
+                for r0 in range(0, total_pairs, pc):
+                    r1 = min(total_pairs, r0 + pc)
+                    idx = torch.arange(r0, r1, device=device, dtype=torch.long)
+                    i_idx = idx // cc
+                    j_idx = idx % cc
+                    img_rep = image_feats.index_select(0, i_idx)
+                    txt_rep = t.index_select(0, j_idx)
+                    flat_parts.append(self.score_pairs(img_rep, txt_rep))
+                sc = torch.cat(flat_parts).view(b, cc)
+                out_chunks.append(sc)
+                continue
             if image_feats.dim() == 2:
                 img_rep = image_feats.unsqueeze(1).expand(-1, cc, -1).reshape(b * cc, -1)
             else:
