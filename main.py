@@ -12,6 +12,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 from transformers import (
+    AutoConfig,
     AutoImageProcessor,
     AutoModel,
     AutoVideoProcessor,
@@ -96,6 +97,30 @@ def _extract_model_pixel_values(processed: dict[str, torch.Tensor]) -> torch.Ten
     )
 
 
+def is_dinov3_vision_model_id(model_id: str) -> bool:
+    """Hub checkpoints such as ``timm/vit_*_dinov3.*`` (substring match)."""
+    return "dinov3" in (model_id or "").lower()
+
+
+def load_pretrained_vision_backbone(model_id: str, **kwargs: Any) -> PreTrainedModel:
+    """
+    Load ``AutoModel`` for a vision backbone id.
+
+    DINOv3 timm wrappers default to ``global_pool='avg``; this repo sets
+    ``global_pool='token'`` so the pooled/CLS representation matches ViT CLS semantics.
+    """
+    mid = (model_id or "").strip()
+    if is_dinov3_vision_model_id(mid):
+        load_kw = dict(kwargs)
+        load_kw.setdefault("trust_remote_code", True)
+        cfg = AutoConfig.from_pretrained(mid, trust_remote_code=True)
+        if hasattr(cfg, "global_pool"):
+            cfg.global_pool = "token"
+        load_kw["config"] = cfg
+        return AutoModel.from_pretrained(mid, **load_kw)
+    return AutoModel.from_pretrained(mid, **kwargs)
+
+
 def fix_dinov3_rope_periods(model: nn.Module) -> None:
     """
     DINOv3 ViT (HF timm wrapper) stores RoPE periods on ``model.rope.periods``.
@@ -142,7 +167,7 @@ def load_vision_backbone_pipeline(
     if dtype is None:
         # Match checkpoint weights; float32 is safest if unset
         dtype = torch.float32
-    model = AutoModel.from_pretrained(model_id, dtype=dtype)
+    model = load_pretrained_vision_backbone(model_id, dtype=dtype)
     fix_dinov3_rope_periods(model)
     model.to(dev)
     model.eval()
@@ -327,7 +352,7 @@ class TextConditionedVisionModel(nn.Module):
     ) -> None:
         super().__init__()
         self.freeze_vision_backbone = bool(freeze_vision_backbone)
-        self.backbone = AutoModel.from_pretrained(ijepa_id)
+        self.backbone = load_pretrained_vision_backbone(ijepa_id)
         fix_dinov3_rope_periods(self.backbone)
         if self.freeze_vision_backbone:
             for p in self.backbone.parameters():

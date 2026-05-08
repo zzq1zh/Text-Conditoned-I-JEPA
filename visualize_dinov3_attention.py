@@ -17,7 +17,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from PIL import Image
 from timm.layers import apply_rot_embed_cat, maybe_add_mask, resolve_self_attn_mask
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoTokenizer
 
 import project_env
 
@@ -33,6 +33,7 @@ from main import (
     TextConditionedVisionModel,
     _extract_model_pixel_values,
     fix_dinov3_rope_periods,
+    load_pretrained_vision_backbone,
     load_vision_processor,
     resolve_vision_model_id,
 )
@@ -418,7 +419,7 @@ def _assert_meta_pairs_equal(meta_a: dict[str, Any], meta_b: dict[str, Any], pat
 
 
 def _backbone_to_eager_attn(model: TextConditionedVisionModel, ijepa_id: str, device: torch.device) -> None:
-    bb = AutoModel.from_pretrained(
+    bb = load_pretrained_vision_backbone(
         ijepa_id,
         torch_dtype=torch.float32,
         attn_implementation="eager",
