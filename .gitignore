@@ -12,6 +12,7 @@ checkpoints/
 logs/
 results_bk/
 checkpoints_bk/
+scripts/
 
 slurm-*.out
 slurm-*.err

@@ -2,11 +2,11 @@
 
 This CSCI 1430 final project explores the use of a lightweight fusion head to align vision backbones such as DINOv3 with textual labels, and evaluates the approach on three datasets: MIT-States, UT-Zappos, and C-GQA.
 
-**Default `--vision-backbone` preset is DINOv3** (`timm/vit_base_patch16_dinov3.lvd1689m`). Use `--vision-backbone {dinov3, ijepa, vjepa}` to switch encoders.
+**Default `--vision-backbone` preset is DINOv3** (`timm/vit_base_patch16_dinov3.lvd1689m`). Use `--vision-backbone dinov3` (default).
 
 ## What is implemented
 
-- **Vision backbone**: loaded with `transformers.AutoModel` + image/video processor; **frozen by default** (unfreeze with `--finetune-vision-backbone`).
+- **Vision backbone**: uses DINOv3 as the vision backbone. (unfreeze with `--finetune-vision-backbone`).
 - **CLIP text tower** + adapter; optionally train CLIP text with `--finetune-clip-text`.
 - **Fusion heads**: `cross_attention`, `clip_similarity`.
 - **Single training objective**: bidirectional InfoNCE.
@@ -90,24 +90,18 @@ Useful flags:
 - `--csp-vocab-init {random,text}`
 - `--csp-attr-dropout 0.3`
 - `--csp-pair-separator " "`
-- `--vision-backbone {dinov3,ijepa,vjepa}` — default **`dinov3`** if omitted; or set explicit HF vision model id with `--ijepa <id>`
+- `--vision-backbone dinov3` — default if omitted; or set an explicit HF vision model id with `--ijepa <id>`
 - `--hyperparams-file hyperparameters.json`
 - `--finetune-clip-text`
 - `--finetune-vision-backbone`
 - `--hub-model-id user/repo` (push trainable weights after training)
 - `--no-wandb` (disable W&B)
 
-Backbone examples:
+Backbone example:
 
 ```bash
 # DINOv3 ViT-B/16
-uv run python text_cond_train.py --vision-backbone dinov3 --dataset cspref_mit_states --epochs 1
-
-# I-JEPA
-uv run python text_cond_train.py --vision-backbone ijepa --dataset cspref_mit_states --epochs 1
-
-# V-JEPA 2
-uv run python text_cond_train.py --vision-backbone vjepa --dataset cspref_mit_states --epochs 1
+uv run python text_cond_train.py --vision-backbone dinov3 --dataset cspref_mit_states --epochs 20
 ```
 
 Dedicated CSP vocab training with `csp_vocab_train.py` (defaults include `--csp-vocab-init text`):
@@ -130,7 +124,7 @@ uv run python text_cond_train.py --eval-only --dataset cspref_mit_states --check
 
 ## Attention visualization (`visualize_dinov3_attention.py`)
 
-Utility to plot **encoder self-attention** maps (mean over heads: **CLS token → image patches**) for the **vision backbone** inside your saved models. Which Hub checkpoint is used (**DINOv3**, I-JEPA, V-JEPA, …) comes from the bundle’s training `args` (`vision_backbone` / `ijepa`), not from separate CLI flags on this script.
+Utility to plot **encoder self-attention** maps (mean over heads: **CLS token → image patches**) for the **vision backbone** inside your saved models. Which Hub checkpoint is used (**DINOv3** or another id saved during training) comes from the bundle’s training `args` (`vision_backbone` / `ijepa`), not from separate CLI flags on this script.
 
 **CLI modes**
 
