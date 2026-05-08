@@ -20,6 +20,11 @@ echo "============================================"
 # Run from the code directory
 cd "$SLURM_SUBMIT_DIR"
 
+# Fragmentation-friendly CUDA allocator (override with PYTORCH_CUDA_ALLOC_CONF before sbatch if needed).
+if [[ -z "${PYTORCH_CUDA_ALLOC_CONF:-}" ]]; then
+  export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+fi
+
 source ~/.local/bin/env
 
 # Select target / dataset / W&B project by args or env vars.
@@ -39,6 +44,8 @@ source ~/.local/bin/env
 #   TRAIN_LR=3e-4 TRAIN_BATCH_SIZE=16 sbatch slurm_text_cond_train.sh ijepa cspref_mit_states
 #     → forwarded as extra args to run_text_cond_train (overrides hyperparameters.json for text_cond_train)
 #     Aliases: LR / BATCH_SIZE env vars. Not applied to csp_posttrain (still uses JSON via slurm_csp_vocab_train.sh).
+#   GRAD_ACCUM_STEPS=2 GRADIENT_CHECKPOINTING=1 FINETUNE_CSP_VOCAB=1 FINETUNE_VISION_BACKBONE=1 sbatch ...
+#     → --grad-accum-steps / --gradient-checkpointing (keeps JSON batch_size & lr; lowers VRAM; CSP path only for accum)
 TARGET="${1:-${TRAIN_TARGET:-dinov3}}"
 DATASET="${2:-${TRAIN_DATASET:-cspref_mit_states}}"
 W_PROJECT="${3:-${WANDB_PROJECT:-}}"
@@ -50,6 +57,8 @@ FUSION_TYPE="${FUSION_TYPE:-clip_similarity}"
 # Learning rate / batch size overrides for dinov3|ijepa|vjepa only (empty = use hyperparameters.json).
 TRAIN_LR="${TRAIN_LR:-${LR:-}}"
 TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-${BATCH_SIZE:-}}"
+GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-}"
+GRADIENT_CHECKPOINTING="${GRADIENT_CHECKPOINTING:-0}"
 
 case "${TARGET}" in
   dinov3|dino)
@@ -106,6 +115,13 @@ case "${TARGET}" in
     if [[ -n "${TRAIN_LR}" ]]; then
       TRAIN_CMD+=(--lr "${TRAIN_LR}")
     fi
+    if [[ -n "${GRAD_ACCUM_STEPS}" ]]; then
+      TRAIN_CMD+=(--grad-accum-steps "${GRAD_ACCUM_STEPS}")
+    fi
+    _gck="$(echo "${GRADIENT_CHECKPOINTING}" | tr '[:upper:]' '[:lower:]')"
+    if [[ "${_gck}" == "1" || "${_gck}" == "true" || "${_gck}" == "yes" || "${_gck}" == "y" ]]; then
+      TRAIN_CMD+=(--gradient-checkpointing)
+    fi
     ;;
 esac
 
@@ -114,6 +130,7 @@ echo "Dataset: ${DATASET}"
 echo "FINETUNE_CSP_VOCAB: ${FINETUNE_CSP_VOCAB} (1/true/y adds --finetune-csp-vocab for ijepa/dinov3/vjepa)"
 echo "FINETUNE_VISION_BACKBONE: ${FINETUNE_VISION_BACKBONE} (1/true/y adds --finetune-vision-backbone for ijepa/dinov3/vjepa)"
 echo "FUSION_TYPE: ${FUSION_TYPE} (--fusion-type for run_text_cond_train; not from hyperparameters.json)"
+echo "GRAD_ACCUM_STEPS: ${GRAD_ACCUM_STEPS:-<unset>}  GRADIENT_CHECKPOINTING: ${GRADIENT_CHECKPOINTING}"
 if [[ "${TARGET}" == dinov3 || "${TARGET}" == dino || "${TARGET}" == ijepa || "${TARGET}" == i-jepa || "${TARGET}" == vjepa || "${TARGET}" == v-jepa ]]; then
   if [[ -n "${TRAIN_BATCH_SIZE}" || -n "${TRAIN_LR}" ]]; then
     echo "TRAIN_BATCH_SIZE: ${TRAIN_BATCH_SIZE:-<JSON>}  TRAIN_LR: ${TRAIN_LR:-<JSON>} (set env TRAIN_BATCH_SIZE / TRAIN_LR or BATCH_SIZE / LR; overrides hyperparameters.json via run_text_cond_train extra args)"

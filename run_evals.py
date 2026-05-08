@@ -172,13 +172,26 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument("--wandb-max-images", type=int, default=8)
     p.add_argument(
+        "--max-eval-samples",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Forward ``--max-eval-samples N`` to each eval subprocess (avoids ``--forward --max-eval-samples`` argparse ambiguity).",
+    )
+    p.add_argument(
         "--forward",
         action="append",
         default=[],
         metavar="ARG",
-        help="Extra argv token for each eval (repeatable), e.g. --forward --finetune-clip-text",
+        help=(
+            "Extra argv token for each eval (repeatable). For a child flag that starts with "
+            "``-``, use equals form, e.g. ``--forward=--max-eval-samples`` then ``--forward=128``."
+        ),
     )
-    return p.parse_args()
+    args = p.parse_args()
+    if args.max_eval_samples is not None:
+        args.forward.extend(["--max-eval-samples", str(args.max_eval_samples)])
+    return args
 
 
 def main() -> None:

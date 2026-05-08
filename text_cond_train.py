@@ -207,6 +207,8 @@ class TrainState:
     csp_attr_dropout: float = 0.3
     csp_pair_separator: str = " "
     base_checkpoint: str = ""
+    grad_accum_steps: int = 1
+    gradient_checkpointing: bool = False
 
 
 def _msamples(x: int) -> int | None:
@@ -1129,6 +1131,17 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
     if args.finetune_vision_backbone:
         for p in model.backbone.parameters():
             p.requires_grad = True
+        if bool(args.gradient_checkpointing):
+            enable_fn = getattr(model.backbone, "gradient_checkpointing_enable", None)
+            if callable(enable_fn):
+                enable_fn()
+                print("Vision backbone: gradient checkpointing enabled.", flush=True)
+            else:
+                print(
+                    "Warning: --gradient-checkpointing set but backbone has no "
+                    "gradient_checkpointing_enable(); skipping.",
+                    flush=True,
+                )
     else:
         model.backbone.eval()
         for p in model.backbone.parameters():
@@ -1176,7 +1189,9 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
         flush=True,
     )
     opt = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
-    total_steps = max(int(args.epochs) * max(len(train_loader), 1), 1)
+    accum = max(1, int(args.grad_accum_steps))
+    updates_per_epoch = (len(train_loader) + accum - 1) // accum
+    total_steps = max(int(args.epochs) * max(updates_per_epoch, 1), 1)
     warmup_steps = min(max(int(round(total_steps * float(args.warmup_ratio))), 0), total_steps)
     if args.scheduler_type == "none":
         sched: torch.optim.lr_scheduler.LRScheduler | None = None
@@ -1203,6 +1218,12 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
         )
     else:
         raise ValueError(f"Unsupported scheduler_type={args.scheduler_type!r}; choose none or cosine")
+    if accum > 1:
+        print(
+            f"Gradient accumulation: {accum} micro-batches per optimizer step "
+            f"(~{updates_per_epoch} optimizer steps/epoch; JSON batch_size unchanged).",
+            flush=True,
+        )
 
     state = TrainState(
         dataset_key=args.dataset,
@@ -1240,6 +1261,8 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
         csp_attr_dropout=float(args.csp_attr_dropout),
         csp_pair_separator=str(args.csp_pair_separator),
         base_checkpoint=str(args.base_checkpoint or ""),
+        grad_accum_steps=int(accum),
+        gradient_checkpointing=bool(args.gradient_checkpointing),
     )
 
     use_wandb = not args.no_wandb and project_env.wandb_configured()
@@ -1296,10 +1319,12 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
                 desc=f"csp vocab fusion={args.fusion_type} ep {epoch + 1}/{args.epochs}",
                 file=sys.stdout,
             )
+            n_batches_len = len(train_loader)
+            micro_in_accum = 0
+            opt.zero_grad(set_to_none=True)
             for batch_idx, batch in enumerate(pbar):
                 pv = batch["pixel_values"].to(device, non_blocking=True)
                 y = batch["labels"].to(device, non_blocking=True)
-                opt.zero_grad(set_to_none=True)
                 # CLIP + composed inputs_embeds are unstable under fp16 autocast on some GPUs; keep text path fp32.
                 candidate_text_bank = csp_vocab.compose_pair_indices(
                     csp_meta, train_allowed_t, device=device
@@ -1318,22 +1343,35 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
                         )
                     pos_text = candidate_text_bank.index_select(0, y_loc)
                     pair_scores = model.score_candidates(z, pos_text)
-                    loss = clip_contrastive_loss(pair_scores)
+                    loss_batch = clip_contrastive_loss(pair_scores)
+                loss = loss_batch / float(accum)
                 if grad_scaler is not None:
                     grad_scaler.scale(loss).backward()
                 else:
                     loss.backward()
-                if args.max_grad_norm > 0:
+                micro_in_accum += 1
+                at_epoch_end = (batch_idx + 1) == n_batches_len
+                should_step = micro_in_accum >= accum or at_epoch_end
+                if should_step:
+                    if micro_in_accum < accum:
+                        scale = float(accum) / float(micro_in_accum)
+                        for p in params:
+                            if p.grad is not None:
+                                p.grad.mul_(scale)
+                    if args.max_grad_norm > 0:
+                        if grad_scaler is not None:
+                            grad_scaler.unscale_(opt)
+                        torch.nn.utils.clip_grad_norm_(params, args.max_grad_norm)
                     if grad_scaler is not None:
-                        grad_scaler.unscale_(opt)
-                    torch.nn.utils.clip_grad_norm_(params, args.max_grad_norm)
-                if grad_scaler is not None:
-                    grad_scaler.step(opt)
-                    grad_scaler.update()
-                else:
-                    opt.step()
-                if sched is not None:
-                    sched.step()
+                        grad_scaler.step(opt)
+                        grad_scaler.update()
+                    else:
+                        opt.step()
+                    if sched is not None:
+                        sched.step()
+                    opt.zero_grad(set_to_none=True)
+                    micro_in_accum = 0
+                    global_step += 1
 
                 log_this_batch = (batch_idx % args.log_interval) == 0
                 img_this_batch = bool(
@@ -1355,7 +1393,7 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
                     batch_acc = 0.0
 
                 if log_this_batch:
-                    pbar.set_postfix(loss=f"{float(loss.detach()):.3f}", acc=f"{batch_acc:.3f}")
+                    pbar.set_postfix(loss=f"{float(loss_batch.detach()):.3f}", acc=f"{batch_acc:.3f}")
 
                 if use_wandb and w is not None:
                     import wandb
@@ -1364,7 +1402,7 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
                     if log_this_batch:
                         log_d.update(
                             {
-                                "train/loss": float(loss.item()),
+                                "train/loss": float(loss_batch.item()),
                                 "train/batch_acc": batch_acc,
                                 "train/lr": opt.param_groups[0]["lr"],
                                 "time_elapsed_s": time.time() - t0,
@@ -1380,8 +1418,6 @@ def run_finetune_csp_vocab(args: argparse.Namespace) -> None:
                         )
                     if log_d:
                         wandb.log(log_d, step=global_step)
-
-                global_step += 1
 
             (
                 val_loss,
@@ -1842,6 +1878,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Separator between attr and object in class names for --finetune-csp-vocab (e.g. space).",
     )
     p.add_argument(
+        "--grad-accum-steps",
+        type=int,
+        default=1,
+        help=(
+            "Gradient accumulation for --finetune-csp-vocab only: optimizer steps every N micro-batches. "
+            "Keeps per-micro-batch size equal to --batch-size (e.g. from hyperparameters.json); LR unchanged."
+        ),
+    )
+    p.add_argument(
+        "--gradient-checkpointing",
+        action="store_true",
+        help="Trade compute for VRAM: checkpoint vision backbone when --finetune-vision-backbone.",
+    )
+    p.add_argument(
         "--device",
         type=str,
         default="auto",
@@ -1969,6 +2019,10 @@ def main() -> None:
     _apply_hyperparams_from_file(args, argv)
     if args.finetune_csp_vocab and args.finetune_clip_text:
         raise ValueError("Cannot combine --finetune-csp-vocab with --finetune-clip-text.")
+    if int(args.grad_accum_steps) < 1:
+        raise ValueError("--grad-accum-steps must be >= 1")
+    if int(args.grad_accum_steps) > 1 and not args.finetune_csp_vocab:
+        raise ValueError("--grad-accum-steps > 1 is only supported with --finetune-csp-vocab")
     if args.eval_only:
         run_eval_only(args)
     elif args.finetune_csp_vocab:

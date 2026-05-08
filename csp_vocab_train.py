@@ -926,13 +926,35 @@ def _load_base_checkpoint_if_any(model: TextConditionedVisionModel, checkpoint: 
     state = torch.load(ckpt, map_location="cpu", weights_only=True)
     if not isinstance(state, dict):
         raise TypeError(f"Checkpoint should be a state_dict mapping, got {type(state).__name__}")
-    res = model.load_state_dict(state, strict=False)
-    if res.unexpected_keys:
-        raise RuntimeError(f"Unexpected keys in checkpoint: {res.unexpected_keys[:12]}")
+    model_sd = model.state_dict()
+    filtered: dict[str, torch.Tensor] = {}
+    for k, v in state.items():
+        if k not in model_sd:
+            continue
+        if not isinstance(v, torch.Tensor):
+            continue
+        if v.shape != model_sd[k].shape:
+            continue
+        filtered[k] = v
+    skipped = [k for k in state if k not in filtered]
+    if not filtered:
+        raise RuntimeError(
+            f"No keys from {ckpt!r} matched the current model (check vision backbone / --ijepa). "
+            f"Checkpoint had {len(state)} keys; model has {len(model_sd)}. "
+            f"First ckpt keys: {list(state.keys())[:8]!r}"
+        )
+    res = model.load_state_dict(filtered, strict=False)
+    if skipped:
+        print(
+            f"[base-checkpoint] Skipped {len(skipped)} checkpoint keys (name/shape mismatch vs current model; "
+            f"common when base .pt used a different DINOv3 Hub id than bundle args).",
+            flush=True,
+        )
+        print(f"[base-checkpoint] First skipped: {skipped[:12]!r}", flush=True)
     fix_dinov3_rope_periods(model.backbone)
     print(
-        "Loaded base checkpoint with strict=False "
-        f"(missing={len(res.missing_keys)}, unexpected={len(res.unexpected_keys)})",
+        "Loaded base checkpoint (intersected keys, strict=False) "
+        f"(missing={len(res.missing_keys)}, loaded={len(filtered)})",
         flush=True,
     )
 

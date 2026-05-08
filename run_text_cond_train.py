@@ -80,6 +80,17 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
         help="For --finetune-csp-vocab: init TextConditionedVisionModel (strict=False). Supports '{seed}' template.",
     )
     p.add_argument(
+        "--grad-accum-steps",
+        type=int,
+        default=1,
+        help="Passed to text_cond_train.py (CSP finetune only): N micro-batches per optimizer step; JSON batch_size unchanged.",
+    )
+    p.add_argument(
+        "--gradient-checkpointing",
+        action="store_true",
+        help="Passed to text_cond_train.py: checkpoint vision backbone when --finetune-vision-backbone.",
+    )
+    p.add_argument(
         "--plot-metric",
         default="top1",
         help="Metric key in eval JSON for seed-performance line plot (e.g. top1, top5, auc_csp_style).",
@@ -244,6 +255,8 @@ def main() -> None:
     print(f"finetune_clip_text: {args.finetune_clip_text}", flush=True)
     print(f"finetune_vision_backbone: {args.finetune_vision_backbone}", flush=True)
     print(f"finetune_csp_vocab: {args.finetune_csp_vocab}", flush=True)
+    print(f"grad_accum_steps: {int(args.grad_accum_steps)}", flush=True)
+    print(f"gradient_checkpointing: {bool(args.gradient_checkpointing)}", flush=True)
     print(f"base_checkpoint_template: {base_ckpt_tpl or '<none>'}", flush=True)
     print(f"plot_metric: {args.plot_metric}", flush=True)
     print(f"dry_run: {args.dry_run}", flush=True)
@@ -296,6 +309,10 @@ def main() -> None:
             train_cmd.append("--finetune-clip-text")
         if args.finetune_vision_backbone:
             train_cmd.append("--finetune-vision-backbone")
+        if int(args.grad_accum_steps) > 1:
+            train_cmd.extend(["--grad-accum-steps", str(int(args.grad_accum_steps))])
+        if args.gradient_checkpointing:
+            train_cmd.append("--gradient-checkpointing")
         if extra_args:
             train_cmd.extend(extra_args)
 

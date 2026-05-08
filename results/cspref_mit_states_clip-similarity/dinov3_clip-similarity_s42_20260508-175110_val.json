@@ -1,0 +1,21 @@
+{
+  "dataset": "cspref_mit_states",
+  "split": "val",
+  "seed": 42,
+  "fusion_type": "clip_similarity",
+  "experiment_tag": "dinov3-clip-similarity-s42-20260508-175110",
+  "checkpoint": "checkpoints/dinov3_cspref_mit_states_clip-similarity_s42_20260508-175110.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 1e-05,
+  "loss": 4.889050792503723,
+  "top1": 0.0009596928982725527,
+  "top5": 0.0049904030710172746,
+  "seen_top1": 0.0027114967462039045,
+  "seen_top5": 0.007592190889370932,
+  "unseen_top1": 0.0005830223880597014,
+  "unseen_top5": 0.004430970149253731,
+  "auc_csp_style": 3.1617265351346553e-06,
+  "batch_size": 128,
+  "timestamp_unix": 1778277259
+}
