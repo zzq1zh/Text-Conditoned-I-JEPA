@@ -124,7 +124,7 @@ uv run python text_cond_train.py --eval-only --dataset cspref_mit_states --check
 
 ## Attention visualization (`visualize_dinov3_attention.py`)
 
-Utility to plot **encoder self-attention** maps (mean over heads: **CLS token → image patches**) for the **vision backbone** inside your saved models. Which Hub checkpoint is used (**DINOv3** or another id saved during training) comes from the bundle’s training `args` (`vision_backbone` / `ijepa`), not from separate CLI flags on this script.
+Utility to plot **encoder self-attention** maps (mean over heads: **CLS token → image patches**) for the **vision backbone** inside your saved models.
 
 **CLI modes**
 
