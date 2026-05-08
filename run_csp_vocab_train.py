@@ -72,6 +72,14 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     return p.parse_known_args()
 
 
+def _strip_forward_separator(extra: list[str]) -> list[str]:
+    """Drop leading ``--`` before forwarding to ``csp_vocab_train.py`` (see run_text_cond_train)."""
+    out = list(extra)
+    while out and out[0] == "--":
+        out.pop(0)
+    return out
+
+
 def _load_hparams(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"Hyperparameters file not found: {path}")
@@ -157,6 +165,7 @@ def _plot_seed_performance(
 
 def main() -> None:
     args, extra_args = _parse_args()
+    extra_args = _strip_forward_separator(extra_args)
 
     repo_root = Path(__file__).resolve().parent
     os.chdir(repo_root)

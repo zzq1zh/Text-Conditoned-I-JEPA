@@ -38,10 +38,10 @@ def load_clip_text_encoder_for_conditioning(clip_model_id: str) -> CLIPTextModel
         torch.cuda.empty_cache()
     return text
 
-# Hub checkpoint ids for `--vision-backbone` presets. Default alias: ``dinov3``.
+# Hub checkpoint ids for `--vision-backbone` presets. Default alias: ``dinov3`` (HF native ViT weights).
 DEFAULT_IJEPA_ID = "facebook/ijepa_vith14_1k"
 DEFAULT_VJEPA_ID = "facebook/vjepa2-vitl-fpc64-256"
-DEFAULT_DINOV3_ID = "timm/vit_base_patch16_dinov3.lvd1689m"
+DEFAULT_DINOV3_ID = "facebook/dinov3-vitb16-pretrain-lvd1689m"
 VISION_BACKBONE_PRESETS: dict[str, str] = {
     "ijepa": DEFAULT_IJEPA_ID,
     "vjepa": DEFAULT_VJEPA_ID,
@@ -97,35 +97,38 @@ def _extract_model_pixel_values(processed: dict[str, torch.Tensor]) -> torch.Ten
     )
 
 
-def is_dinov3_vision_model_id(model_id: str) -> bool:
-    """Hub checkpoints such as ``timm/vit_*_dinov3.*`` (substring match)."""
-    return "dinov3" in (model_id or "").lower()
+def _hub_id_needs_trust_remote_code(model_id: str) -> bool:
+    """Custom code on Hub (official DINOv3 ViT + timm-wrapped checkpoints)."""
+    mid = (model_id or "").strip().lower()
+    return mid.startswith("timm/") or mid.startswith("facebook/dinov3") or "/dinov3" in mid
 
 
 def load_pretrained_vision_backbone(model_id: str, **kwargs: Any) -> PreTrainedModel:
     """
     Load ``AutoModel`` for a vision backbone id.
 
-    DINOv3 timm wrappers default to ``global_pool='avg``; this repo sets
-    ``global_pool='token'`` so the pooled/CLS representation matches ViT CLS semantics.
+    Uses ``trust_remote_code`` for Hugging Face DINOv3 ViT/TIMM hubs. Legacy
+    ``timm/vit_*_dinov3.*`` wrappers may set ``global_pool='token'`` on
+    ``TimmWrapperConfig`` only; native ``facebook/dinov3-*`` does not use timm.
     """
     mid = (model_id or "").strip()
-    if is_dinov3_vision_model_id(mid):
-        load_kw = dict(kwargs)
+    load_kw = dict(kwargs)
+    if _hub_id_needs_trust_remote_code(mid):
         load_kw.setdefault("trust_remote_code", True)
-        cfg = AutoConfig.from_pretrained(mid, trust_remote_code=True)
-        if hasattr(cfg, "global_pool"):
-            cfg.global_pool = "token"
+    trust = bool(load_kw.get("trust_remote_code", False))
+    cfg = AutoConfig.from_pretrained(mid, trust_remote_code=trust)
+    if cfg.__class__.__name__ == "TimmWrapperConfig" and hasattr(cfg, "global_pool"):
+        cfg.global_pool = "token"
         load_kw["config"] = cfg
-        return AutoModel.from_pretrained(mid, **load_kw)
-    return AutoModel.from_pretrained(mid, **kwargs)
+    return AutoModel.from_pretrained(mid, **load_kw)
 
 
 def fix_dinov3_rope_periods(model: nn.Module) -> None:
     """
-    DINOv3 ViT (HF timm wrapper) stores RoPE periods on ``model.rope.periods``.
-    A bfloat16→float32 round-trip matches common Hub usage and avoids dtype/numerical
-    issues when the rest of the model runs in float32 or mixed precision.
+    timm-wrapped DINOv3 on Hugging Face (``TimmWrapperModel``) may expose
+    ``model.rope.periods``. Apply a bf16→float32 round-trip for stability.
+
+    Native ``facebook/dinov3-*`` uses ``rope_embeddings`` instead; this is a no-op.
     """
     rope = getattr(model, "rope", None)
     if rope is None or not hasattr(rope, "periods"):
@@ -145,10 +148,14 @@ def load_vision_processor(model_id: str) -> Any:
     Load image/video processor for a backbone id.
     Prefers ``AutoImageProcessor`` and falls back to ``AutoVideoProcessor``.
     """
+    mid = (model_id or "").strip()
+    ik: dict[str, Any] = {}
+    if _hub_id_needs_trust_remote_code(mid):
+        ik["trust_remote_code"] = True
     try:
-        return AutoImageProcessor.from_pretrained(model_id)
+        return AutoImageProcessor.from_pretrained(mid, **ik)
     except (ValueError, OSError):
-        return AutoVideoProcessor.from_pretrained(model_id)
+        return AutoVideoProcessor.from_pretrained(mid, **ik)
 
 
 def load_vision_backbone_pipeline(

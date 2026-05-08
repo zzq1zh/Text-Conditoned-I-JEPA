@@ -88,6 +88,19 @@ def _parse_args() -> tuple[argparse.Namespace, list[str]]:
     return p.parse_known_args()
 
 
+def _strip_forward_separator(extra: list[str]) -> list[str]:
+    """
+    Drop leading ``--`` tokens before forwarding to ``text_cond_train.py``.
+
+    Shell wrappers often use ``run_*.py ... -- --max-train-samples N``; ``parse_known_args`` leaves
+    the bare ``--`` in the unknown-args list, which the child argparse rejects.
+    """
+    out = list(extra)
+    while out and out[0] == "--":
+        out.pop(0)
+    return out
+
+
 def _load_hparams(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"Hyperparameters file not found: {path}")
@@ -168,6 +181,7 @@ def _plot_seed_performance(
 
 def main() -> None:
     args, extra_args = _parse_args()
+    extra_args = _strip_forward_separator(extra_args)
     if args.finetune_csp_vocab and args.finetune_clip_text:
         raise ValueError("Cannot combine --finetune-csp-vocab with --finetune-clip-text.")
 

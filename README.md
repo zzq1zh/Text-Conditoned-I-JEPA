@@ -2,7 +2,7 @@
 
 This CSCI 1430 final project explores the use of a lightweight fusion head to align vision backbones such as DINOv3 with textual labels, and evaluates the approach on three datasets: MIT-States, UT-Zappos, and C-GQA.
 
-**Default `--vision-backbone` preset is DINOv3** (`timm/vit_base_patch16_dinov3.lvd1689m`). Use `--vision-backbone dinov3` (default).
+**Default `--vision-backbone` preset is DINOv3** (`facebook/dinov3-vitb16-pretrain-lvd1689m`, Hugging Face native checkpoint). Use `--vision-backbone dinov3` (default).
 
 ## What is implemented
 
