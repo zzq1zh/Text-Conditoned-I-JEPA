@@ -41,7 +41,7 @@ def load_clip_text_encoder_for_conditioning(clip_model_id: str) -> CLIPTextModel
 # Hub checkpoint ids for `--vision-backbone` presets. Default alias: ``dinov3``.
 DEFAULT_IJEPA_ID = "facebook/ijepa_vith14_1k"
 DEFAULT_VJEPA_ID = "facebook/vjepa2-vitl-fpc64-256"
-DEFAULT_DINOV3_ID = "timm/vit_base_patch16_dinov3.lvd1689m"
+DEFAULT_DINOV3_ID = "facebook/dinov3-vitb16-pretrain-lvd1689m"
 VISION_BACKBONE_PRESETS: dict[str, str] = {
     "ijepa": DEFAULT_IJEPA_ID,
     "vjepa": DEFAULT_VJEPA_ID,
