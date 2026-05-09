@@ -1,0 +1,22 @@
+{
+  "run_type": "csp_vocab_eval",
+  "dataset": "cspref_ut_zappos",
+  "split": "val",
+  "seed": 43,
+  "fusion_type": "cross_attention",
+  "experiment_tag": "dinov3-cross-attention-s43-20260508-075102",
+  "checkpoint": "checkpoints/csp_vocab_dinov3_cspref_ut_zappos_cross-attention_s43_20260508-075102.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 1e-05,
+  "loss": 4.030549025861981,
+  "top1": 0.2271313005600498,
+  "top5": 0.8151835718730553,
+  "seen_top1": 0.6624857468643102,
+  "seen_top5": 0.87115165336374,
+  "unseen_top1": 0.06375695335900727,
+  "unseen_top5": 0.7941805733846812,
+  "auc_csp_style": 0.051543776558478,
+  "batch_size": 128,
+  "timestamp_unix": 1778251768
+}

@@ -1,0 +1,22 @@
+{
+  "run_type": "csp_vocab_eval",
+  "dataset": "cspref_cgqa",
+  "split": "val",
+  "seed": 41,
+  "fusion_type": "cross_attention",
+  "experiment_tag": "dinov3-cross-attention-s41-20260508-010247",
+  "checkpoint": "checkpoints/csp_vocab_dinov3_cspref_cgqa_cross-attention_s41_20260508-010247.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 5e-05,
+  "loss": 1.8126853696592562,
+  "top1": 0.11373626373626373,
+  "top5": 0.30892857142857144,
+  "seen_top1": 0.15384615384615385,
+  "seen_top5": 0.3694474539544962,
+  "unseen_top1": 0.07246376811594203,
+  "unseen_top5": 0.24665551839464883,
+  "auc_csp_style": 0.018999167378190338,
+  "batch_size": 128,
+  "timestamp_unix": 1778233893
+}

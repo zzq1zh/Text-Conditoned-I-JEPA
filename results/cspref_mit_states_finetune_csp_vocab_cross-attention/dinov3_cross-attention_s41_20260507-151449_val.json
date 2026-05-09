@@ -1,0 +1,22 @@
+{
+  "run_type": "csp_vocab_eval",
+  "dataset": "cspref_mit_states",
+  "split": "val",
+  "seed": 41,
+  "fusion_type": "cross_attention",
+  "experiment_tag": "dinov3-cross-attention-s41-20260507-151449",
+  "checkpoint": "checkpoints/csp_vocab_dinov3_cspref_mit_states_cross-attention_s41_20260507-151449.pt",
+  "from_hub": "",
+  "lr": 5e-05,
+  "weight_decay": 1e-05,
+  "loss": 4.024733780075629,
+  "top1": 0.13618042226487523,
+  "top5": 0.4493282149712092,
+  "seen_top1": 0.3806941431670282,
+  "seen_top5": 0.6664859002169198,
+  "unseen_top1": 0.0836054104477612,
+  "unseen_top5": 0.40263526119402987,
+  "auc_csp_style": 0.044535701482786835,
+  "batch_size": 128,
+  "timestamp_unix": 1778188997
+}
